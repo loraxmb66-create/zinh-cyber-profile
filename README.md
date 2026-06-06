@@ -1,74 +1,70 @@
-# Hồ Sơ Cá Nhân Zinh
+# LORAX HUB
 
-Website hồ sơ cá nhân cao cấp được xây dựng bằng React, TypeScript, Tailwind CSS, Framer Motion, Three.js và GSAP.
+Professional Next.js 15 dashboard for IT tooling, AI chat, short links, QR generation, file metadata, analytics, API status, FiveM status, Telegram account management and admin operations.
 
-## Tính năng
+## Stack
 
-- Giao diện người dùng cyberpunk tối màu, đáp ứng trên mọi thiết bị với hiệu ứng glassmorphism, điểm nhấn neon, hình nền động Three.js, hiệu ứng hào quang con trỏ, mưa/tuyết và chế độ ma trận.
+- Next.js 15 App Router
+- TypeScript
+- Tailwind CSS
+- Shadcn-style local UI primitives
+- Framer Motion
+- Lucide Icons
+- PostgreSQL
+- Prisma ORM
+- JWT authentication with HTTP-only cookies
+- REST API + OpenAPI JSON at `/api/docs`
+- PWA manifest + service worker
+- Docker and docker-compose
 
-- Phần Hero với ảnh đại diện được tạo tự động, gõ chữ động, khẩu hiệu, trạng thái trực tuyến và hành động chia sẻ thẻ.
-
-- Giới thiệu, kỹ năng, dòng thời gian kinh nghiệm, trung tâm mạng xã hội, bộ lọc danh mục đầu tư, cửa sổ bật lên dự án, bảng điều khiển thống kê, hộp đèn thư viện ảnh, trung tâm liên hệ, thẻ QR, huy hiệu, trình phát nhạc, chuyển đổi ngôn ngữ, trình tùy chỉnh chủ đề, manifest/service worker PWA, siêu dữ liệu SEO, cảnh báo chống sao chép/menu ngữ cảnh, thông báo trực tiếp, đồng hồ, tiện ích kiểu thời tiết và bộ đếm lượt truy cập.
-
-## Cài đặt
+## Setup
 
 ```bash
 npm install
+cp .env.example .env
+npx prisma generate
+npx prisma migrate dev
 npm run dev
 ```
 
-Bản dựng sản phẩm:
+Local PostgreSQL with Docker:
 
 ```bash
-npm run build
+docker compose up -d postgres
 ```
 
-Tài sản dự án được tạo:
-
-- `public/assets/zinh-avatar.png`
-
-# zinh-cyber-profile
-
-## Admin
-
-Open `/admin` and log in with:
+Default admin credentials are configured with env vars:
 
 ```text
-admin / 123456Dinh
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=123456Dinh
 ```
 
-The admin page can edit the main profile text, avatar, gallery images, social URLs, contact buttons, highlight banner, and footer content.
+## Production Notes
 
-Current storage: Supabase table `site_content`, with browser `localStorage` as fallback cache.
+- Set `DATABASE_URL` to a PostgreSQL database before deploying.
+- Set a strong `JWT_SECRET`.
+- Wire `CUSTOM_AI_API_URL` and `CUSTOM_AI_API_KEY` for real AI streaming.
+- File upload API currently stores metadata; connect S3, Cloudflare R2, Vercel Blob or Supabase Storage for binary files.
+- Telegram session management is scaffolded as metadata; never expose raw sessions from public frontend routes.
+- Replace frontend/mock dashboard data with database queries as each module goes live.
 
-Run this SQL in Supabase SQL Editor before saving from admin:
+## API Routes
 
-```sql
-create table if not exists public.site_content (
-  id text primary key,
-  content jsonb not null,
-  updated_at timestamptz not null default now()
-);
+- `POST /api/auth/login`
+- `POST /api/ai/chat`
+- `GET/POST /api/links`
+- `POST /api/qr`
+- `GET/POST /api/files`
+- `GET/POST /api/visitors`
+- `GET /api/status`
+- `GET /api/fivem/status`
+- `GET /api/telegram/accounts`
+- `GET /api/docs`
 
-alter table public.site_content enable row level security;
+## Branding
 
-grant usage on schema public to anon, authenticated;
-grant select, insert, update on public.site_content to anon, authenticated;
-
-drop policy if exists "Public read site content" on public.site_content;
-create policy "Public read site content"
-on public.site_content
-for select
-to anon
-using (true);
-
-drop policy if exists "Public write site content" on public.site_content;
-create policy "Public write site content"
-on public.site_content
-for all
-to anon
-using (id = 'main')
-with check (id = 'main');
-```
-
-The current admin login is frontend-only (`admin / 123456Dinh`). For real security, replace this with Supabase Auth and stricter RLS policies.
+- Primary: `#00E5FF`
+- Secondary: `#7B61FF`
+- Background: `#0A0A0A`
+- Footer: `© 2026 LORAX HUB` / `Powered by LORAX`

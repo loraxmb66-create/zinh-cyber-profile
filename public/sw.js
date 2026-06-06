@@ -1,4 +1,4 @@
-const CACHE = 'zinh-cyber-profile-v4';
+const CACHE = 'lorax-hub-v1';
 const ASSETS = ['/manifest.webmanifest', '/assets/zinh-avatar.png'];
 
 self.addEventListener('install', (event) => {

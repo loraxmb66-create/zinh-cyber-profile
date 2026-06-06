@@ -1,0 +1,129 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  USER
+  VIEWER
+}
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  username     String     @unique
+  passwordHash String
+  role         Role       @default(USER)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  logs         AuditLog[]
+}
+
+model Conversation {
+  id        String    @id @default(cuid())
+  title     String
+  userId    String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  messages  Message[]
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  role           String
+  content        String
+  attachmentUrl  String?
+  createdAt      DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+model ShortLink {
+  id        String      @id @default(cuid())
+  slug      String      @unique
+  targetUrl String
+  title     String?
+  clicks    Int         @default(0)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  events    LinkClick[]
+}
+
+model LinkClick {
+  id          String    @id @default(cuid())
+  shortLinkId String
+  country     String?
+  browser     String?
+  device      String?
+  ipHash      String?
+  createdAt   DateTime  @default(now())
+  shortLink   ShortLink @relation(fields: [shortLinkId], references: [id], onDelete: Cascade)
+}
+
+model FileAsset {
+  id        String   @id @default(cuid())
+  name      String
+  mimeType  String
+  size      Int
+  url       String
+  ownerId   String?
+  createdAt DateTime @default(now())
+}
+
+model ApiService {
+  id           String   @id @default(cuid())
+  name         String
+  endpoint     String
+  status       String   @default("UNKNOWN")
+  responseTime Int?
+  uptime       Float    @default(100)
+  lastError    String?
+  updatedAt    DateTime @updatedAt
+}
+
+model FiveMServer {
+  id          String   @id @default(cuid())
+  name        String
+  endpoint    String
+  bannerUrl   String?
+  discordUrl  String?
+  connectUrl  String?
+  maxPlayers  Int      @default(64)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model TelegramAccount {
+  id         String   @id @default(cuid())
+  username   String?
+  phone      String?
+  avatarUrl  String?
+  sessionRef String?
+  lastLogin  DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model VisitorEvent {
+  id        String   @id @default(cuid())
+  path      String
+  country   String?
+  browser   String?
+  device    String?
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  action    String
+  entity    String
+  metadata  Json?
+  createdAt DateTime @default(now())
+  actor     User?    @relation(fields: [actorId], references: [id])
+}

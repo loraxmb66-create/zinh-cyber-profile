@@ -1,0 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #0a0a0a;
+  --primary: #00e5ff;
+  --secondary: #7b61ff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background:
+    radial-gradient(circle at 18% 8%, rgba(0, 229, 255, 0.18), transparent 34rem),
+    radial-gradient(circle at 80% 4%, rgba(123, 97, 255, 0.18), transparent 30rem),
+    linear-gradient(135deg, #0a0a0a, #060712 48%, #0a0a0a);
+  color: white;
+}
+
+.neon-text {
+  text-shadow: 0 0 20px rgba(0, 229, 255, 0.78);
+}
+
+.glass-panel {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.035));
+  box-shadow: 0 24px 90px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(22px);
+}
+
+.animated-grid {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.18;
+  background-image:
+    linear-gradient(rgba(0, 229, 255, 0.3) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(123, 97, 255, 0.28) 1px, transparent 1px);
+  background-size: 48px 48px;
+  animation: grid-pan 18s linear infinite;
+}
+
+@keyframes grid-pan {
+  to {
+    background-position: 96px 96px;
+  }
+}
+
+.scrollbar-thin {
+  scrollbar-color: rgba(0, 229, 255, 0.45) rgba(255, 255, 255, 0.06);
+}

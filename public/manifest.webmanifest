@@ -1,11 +1,11 @@
 {
-  "name": "Zinh Cyber Profile",
-  "short_name": "Zinh",
-  "description": "Premium futuristic personal profile website.",
+  "name": "LORAX HUB",
+  "short_name": "LORAX",
+  "description": "Everything Connected. Everything Under Control.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#05020a",
-  "theme_color": "#05020a",
+  "background_color": "#0A0A0A",
+  "theme_color": "#00E5FF",
   "icons": [
     {
       "src": "/assets/zinh-avatar.png",
