@@ -2,13 +2,13 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'LORAX HUB | Everything Connected',
-  description: 'Professional IT dashboard for AI chat, short links, QR, file upload, analytics, API status, FiveM and Telegram management.',
-  keywords: ['LORAX HUB', 'AI chat', 'URL shortener', 'QR generator', 'IT toolkit', 'dashboard'],
+  title: 'NEON SUPPLY | Nguyen lieu, phu kien va san pham so',
+  description: 'Website thuong mai dien tu dark mode cho nguyen lieu, vat lieu, phu kien va san pham so.',
+  keywords: ['NEON SUPPLY', 'nguyen lieu', 'phu kien', 'san pham so', 'ecommerce'],
   manifest: '/manifest.webmanifest',
   openGraph: {
-    title: 'LORAX HUB',
-    description: 'Everything Connected. Everything Under Control.',
+    title: 'NEON SUPPLY',
+    description: 'Premium commerce for materials, accessories and digital products.',
     type: 'website'
   }
 };

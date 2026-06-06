@@ -1,5 +1,5 @@
-import { LoraxHub } from '@/components/lorax-hub';
+import { ShopApp } from '@/components/shop-app';
 
 export default function HomePage() {
-  return <LoraxHub />;
+  return <ShopApp />;
 }

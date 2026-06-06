@@ -1,78 +1,65 @@
-# LORAX HUB
+# NEON SUPPLY E-commerce
 
-Professional Next.js 15 dashboard for IT tooling, AI chat, short links, QR generation, file metadata, analytics, API status, FiveM status, Telegram account management and admin operations.
+Website thương mại điện tử full-stack bằng Next.js 15, TypeScript, TailwindCSS, Prisma ORM và PostgreSQL.
 
-## Stack
+## Tính năng
 
-- Next.js 15 App Router
-- TypeScript
-- Tailwind CSS
-- Shadcn-style local UI primitives
-- Framer Motion
-- Lucide Icons
-- PostgreSQL
-- Prisma ORM
-- JWT authentication with HTTP-only cookies
-- REST API + OpenAPI JSON at `/api/docs`
-- PWA manifest + service worker
-- Docker and docker-compose
+- Trang chủ: banner, search, danh mục nổi bật, best sellers, sản phẩm mới, ưu đãi, review, footer.
+- Trang sản phẩm: tìm kiếm, lọc danh mục, lọc còn hàng, sort mới nhất/giá thấp/bán chạy.
+- Chi tiết sản phẩm: ảnh, giá, mô tả, tồn kho, rating, sản phẩm liên quan.
+- Giỏ hàng: thêm/xoá/tăng giảm số lượng, mã giảm giá, tổng tiền.
+- Thanh toán: thông tin khách, phương thức chuyển khoản/ví/COD, tự tạo mã đơn.
+- Tài khoản: đăng nhập/đăng ký UI, lịch sử đơn hàng local.
+- Admin `/admin` trong UI: dashboard, sản phẩm, đơn hàng, users, coupons, theme, payments.
+- Backend API: products, orders, coupons.
+- Database SQL đầy đủ: `database/ecommerce.sql`.
+- Fallback localStorage: vẫn test được khi chưa có PostgreSQL.
 
-## Setup
+## Cài đặt
 
 ```bash
 npm install
 cp .env.example .env
 npx prisma generate
-npx prisma migrate dev
 npm run dev
 ```
 
-Manual SQL setup:
+## Database
+
+Chạy SQL trong PostgreSQL/Supabase/Neon:
 
 ```bash
-psql "$DATABASE_URL" -f database/lorax-hub.sql
+psql "$DATABASE_URL" -f database/ecommerce.sql
 ```
 
-Or paste [database/lorax-hub.sql](database/lorax-hub.sql) into Supabase SQL Editor.
-
-Local PostgreSQL with Docker:
-
-```bash
-docker compose up -d postgres
-```
-
-Default admin credentials are configured with env vars:
+Hoặc mở Supabase SQL Editor và paste nội dung:
 
 ```text
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=123456Dinh
+database/ecommerce.sql
 ```
 
-## Production Notes
+Nếu dùng Prisma migrate:
 
-- Set `DATABASE_URL` to a PostgreSQL database before deploying.
-- Set a strong `JWT_SECRET`.
-- Wire `CUSTOM_AI_API_URL` and `CUSTOM_AI_API_KEY` for real AI streaming.
-- File upload API currently stores metadata; connect S3, Cloudflare R2, Vercel Blob or Supabase Storage for binary files.
-- Telegram session management is scaffolded as metadata; never expose raw sessions from public frontend routes.
-- Replace frontend/mock dashboard data with database queries as each module goes live.
+```bash
+npx prisma migrate dev
+```
 
-## API Routes
+## Build
 
-- `POST /api/auth/login`
-- `POST /api/ai/chat`
-- `GET/POST /api/links`
-- `POST /api/qr`
-- `GET/POST /api/files`
-- `GET/POST /api/visitors`
-- `GET /api/status`
-- `GET /api/fivem/status`
-- `GET /api/telegram/accounts`
-- `GET /api/docs`
+```bash
+npm run build
+```
 
-## Branding
+## Deploy
 
-- Primary: `#00E5FF`
-- Secondary: `#7B61FF`
-- Background: `#0A0A0A`
-- Footer: `© 2026 LORAX HUB` / `Powered by LORAX`
+Trên Vercel cần set:
+
+```text
+DATABASE_URL
+JWT_SECRET
+ADMIN_USERNAME
+ADMIN_PASSWORD
+NEXT_PUBLIC_APP_URL
+```
+
+File upload hiện có temporary local link để test. Production nên nối Cloudflare R2, S3, Vercel Blob hoặc Supabase Storage.
