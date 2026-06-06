@@ -118,6 +118,12 @@ textarea:focus {
   color: white;
 }
 
+.icon-btn.sound-on {
+  border-color: rgba(39, 255, 242, 0.58);
+  color: var(--accent);
+  box-shadow: 0 0 18px rgba(39, 255, 242, 0.18);
+}
+
 .status-dot {
   width: 0.65rem;
   height: 0.65rem;

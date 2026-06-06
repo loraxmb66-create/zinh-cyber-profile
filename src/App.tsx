@@ -48,6 +48,7 @@ export function App() {
   const [snow, setSnow] = useState(false);
   const [rain, setRain] = useState(true);
   const [accent, setAccent] = useState('#27fff2');
+  const [clickSound, setClickSound] = useState(true);
   const [category, setCategory] = useState<ProjectCategory>('All');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [lightbox, setLightbox] = useState<GalleryViewItem | null>(null);
@@ -124,9 +125,10 @@ export function App() {
 
   useEffect(() => {
     let ctx: AudioContext | null = null;
-    const interactiveSelector = 'button, a, input, textarea, select, label, [role="button"]';
+    const interactiveSelector = 'button, a, input, textarea, select, label, [role="button"], .social-card, .project-card, .gallery-tile';
 
     const playClick = (event: PointerEvent) => {
+      if (!clickSound) return;
       const target = event.target as HTMLElement | null;
       if (!target?.closest(interactiveSelector)) return;
 
@@ -140,16 +142,16 @@ export function App() {
       const now = ctx.currentTime;
 
       oscillator.type = 'triangle';
-      oscillator.frequency.setValueAtTime(920, now);
-      oscillator.frequency.exponentialRampToValueAtTime(520, now + 0.045);
+      oscillator.frequency.setValueAtTime(1240, now);
+      oscillator.frequency.exponentialRampToValueAtTime(620, now + 0.055);
       gain.gain.setValueAtTime(0.0001, now);
-      gain.gain.exponentialRampToValueAtTime(0.055, now + 0.008);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.07);
+      gain.gain.exponentialRampToValueAtTime(0.16, now + 0.006);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.085);
 
       oscillator.connect(gain);
       gain.connect(ctx.destination);
       oscillator.start(now);
-      oscillator.stop(now + 0.08);
+      oscillator.stop(now + 0.095);
     };
 
     window.addEventListener('pointerdown', playClick, { passive: true });
@@ -157,7 +159,7 @@ export function App() {
       window.removeEventListener('pointerdown', playClick);
       ctx?.close();
     };
-  }, []);
+  }, [clickSound]);
 
   const handleSaveContent = (nextContent: SiteContent) => {
     saveSiteContent(nextContent);
@@ -423,6 +425,9 @@ export function App() {
 
       <aside className="control-panel">
         <button className="icon-btn" onClick={toggleMusic} aria-label="Toggle music">{music ? <Pause size={16} /> : <Play size={16} />}</button>
+        <button className={`icon-btn ${clickSound ? 'sound-on' : ''}`} onClick={() => setClickSound((value) => !value)} aria-label="Toggle click sound">
+          <Zap size={16} />
+        </button>
         <button className="icon-btn" onClick={() => setMatrix((value) => !value)} aria-label="Matrix mode"><MoonStar size={16} /></button>
         <button className="icon-btn" onClick={() => setRain((value) => !value)} aria-label="Rain mode"><Volume2 size={16} /></button>
         <button className="icon-btn" onClick={() => setSnow((value) => !value)} aria-label="Snow mode"><Snowflake size={16} /></button>
