@@ -177,9 +177,16 @@ export function App() {
   }, [clickSound]);
 
   const handleSaveContent = async (nextContent: SiteContent) => {
-    await saveSiteContent(nextContent);
-    setContent(nextContent);
+    const savedContent = await saveSiteContent(nextContent);
+    setContent(savedContent);
     setNotice('Admin changes saved to Supabase');
+    return savedContent;
+  };
+
+  const handleReloadContent = async () => {
+    const remoteContent = await loadRemoteSiteContent();
+    setContent(remoteContent);
+    return remoteContent;
   };
 
   const toggleMusic = () => {
@@ -220,7 +227,7 @@ export function App() {
       <AdminPage
         content={content}
         onSave={handleSaveContent}
-        onReset={() => handleSaveContent(defaultSiteContent)}
+        onReload={handleReloadContent}
       />
     );
   }
@@ -484,16 +491,25 @@ function Widget({ icon: Icon, label, value }: { icon: LucideIcon; label: string;
   );
 }
 
-function AdminPage({ content, onSave, onReset }: { content: SiteContent; onSave: (content: SiteContent) => Promise<void>; onReset: () => void }) {
+function AdminPage({
+  content,
+  onSave,
+  onReload
+}: {
+  content: SiteContent;
+  onSave: (content: SiteContent) => Promise<SiteContent>;
+  onReload: () => Promise<SiteContent>;
+}) {
   const [authed, setAuthed] = useState(() => window.localStorage.getItem(ADMIN_SESSION_KEY) === 'active');
   const [login, setLogin] = useState({ username: '', password: '' });
   const [draft, setDraft] = useState<SiteContent>(content);
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
-    setDraft(content);
-  }, [content]);
+    if (!dirty) setDraft(content);
+  }, [content, dirty]);
 
   const submitLogin = (event: FormEvent) => {
     event.preventDefault();
@@ -507,10 +523,12 @@ function AdminPage({ content, onSave, onReset }: { content: SiteContent; onSave:
   };
 
   const updateDraft = (key: keyof SiteContent, value: string) => {
+    setDirty(true);
     setDraft((current) => ({ ...current, [key]: value }));
   };
 
   const updateSocial = (index: number, key: 'handle' | 'url', value: string) => {
+    setDirty(true);
     setDraft((current) => ({
       ...current,
       socials: current.socials.map((item, itemIndex) => (itemIndex === index ? { ...item, [key]: value } : item))
@@ -518,6 +536,7 @@ function AdminPage({ content, onSave, onReset }: { content: SiteContent; onSave:
   };
 
   const updateGallery = (index: number, key: 'title' | 'imageUrl', value: string) => {
+    setDirty(true);
     setDraft((current) => ({
       ...current,
       gallery: current.gallery.map((item, itemIndex) => (itemIndex === index ? { ...item, [key]: value } : item))
@@ -538,7 +557,9 @@ function AdminPage({ content, onSave, onReset }: { content: SiteContent; onSave:
     setSaving(true);
     setMessage('Dang luu len Supabase...');
     try {
-      await onSave(draft);
+      const savedContent = await onSave(draft);
+      setDraft(savedContent);
+      setDirty(false);
       setMessage('Da luu len Supabase. Tat ca nguoi xem se thay noi dung moi.');
     } catch (error) {
       const detail =
@@ -548,6 +569,27 @@ function AdminPage({ content, onSave, onReset }: { content: SiteContent; onSave:
             ? JSON.stringify(error)
             : 'Unknown Supabase error';
       setMessage(`Chua luu duoc len Supabase: ${detail}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const reloadRemote = async () => {
+    setSaving(true);
+    setMessage('Dang tai lai tu Supabase...');
+    try {
+      const remoteContent = await onReload();
+      setDraft(remoteContent);
+      setDirty(false);
+      setMessage('Da tai lai noi dung moi nhat tu Supabase.');
+    } catch (error) {
+      const detail =
+        error instanceof Error
+          ? error.message
+          : typeof error === 'object' && error
+            ? JSON.stringify(error)
+            : 'Unknown Supabase error';
+      setMessage(`Chua tai duoc tu Supabase: ${detail}`);
     } finally {
       setSaving(false);
     }
@@ -595,11 +637,14 @@ function AdminPage({ content, onSave, onReset }: { content: SiteContent; onSave:
           <div>
             <p className="admin-kicker">Control Center</p>
             <h1>Chinh sua giao dien Zinh</h1>
-            <span>{message || 'Noi dung duoc luu len Supabase va co localStorage lam cache du phong.'}</span>
+            <span>{message || (dirty ? 'Ban co thay doi chua luu.' : 'Noi dung duoc luu len Supabase va co localStorage lam cache du phong.')}</span>
           </div>
           <div className="flex flex-wrap gap-2">
             <button className="primary-btn" type="submit" disabled={saving}><Upload size={18} /> {saving ? 'Dang luu' : 'Luu thay doi'}</button>
-            <button className="secondary-btn" type="button" onClick={() => { setDraft(defaultSiteContent); onReset(); }}>
+            <button className="secondary-btn" type="button" onClick={reloadRemote} disabled={saving}>
+              Tai tu Supabase
+            </button>
+            <button className="secondary-btn" type="button" onClick={() => { setDirty(true); setDraft(defaultSiteContent); }}>
               Khoi phuc mac dinh
             </button>
           </div>

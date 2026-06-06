@@ -84,7 +84,11 @@ export function loadSiteContent(): SiteContent {
 }
 
 export function cacheSiteContent(content: SiteContent) {
-  window.localStorage.setItem(CONTENT_STORAGE_KEY, JSON.stringify(content));
+  try {
+    window.localStorage.setItem(CONTENT_STORAGE_KEY, JSON.stringify(content));
+  } catch {
+    window.localStorage.removeItem(CONTENT_STORAGE_KEY);
+  }
 }
 
 export async function loadRemoteSiteContent(): Promise<SiteContent> {
@@ -110,16 +114,33 @@ export async function loadRemoteSiteContent(): Promise<SiteContent> {
   return content;
 }
 
-export async function saveSiteContent(content: SiteContent): Promise<void> {
-  cacheSiteContent(content);
-
-  const { error } = await supabase.from('site_content').upsert({
-    id: CONTENT_ROW_ID,
-    content,
-    updated_at: new Date().toISOString()
-  });
+export async function saveSiteContent(content: SiteContent): Promise<SiteContent> {
+  const { data, error } = await supabase
+    .from('site_content')
+    .upsert({
+      id: CONTENT_ROW_ID,
+      content,
+      updated_at: new Date().toISOString()
+    })
+    .select('content')
+    .single();
 
   if (error) {
     throw new Error([error.message, error.details, error.hint, error.code].filter(Boolean).join(' | '));
   }
+
+  if (!data?.content) {
+    throw new Error('Supabase did not return saved content');
+  }
+
+  const saved = data.content as unknown as Partial<SiteContent>;
+  const savedContent = {
+    ...defaultSiteContent,
+    ...saved,
+    socials: saved.socials?.length ? saved.socials : defaultSiteContent.socials,
+    gallery: saved.gallery?.length ? saved.gallery : defaultSiteContent.gallery
+  };
+
+  cacheSiteContent(savedContent);
+  return savedContent;
 }
