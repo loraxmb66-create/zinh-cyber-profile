@@ -5,15 +5,23 @@ import {
   Clock3,
   CloudSun,
   Copy,
+  CopyCheck,
+  Fingerprint,
   Image as ImageIcon,
+  KeyRound,
   LockKeyhole,
   Mail,
   MessageCircle,
+  MonitorSmartphone,
   MoonStar,
   Pause,
   Play,
   QrCode,
+  RefreshCw,
+  Router,
+  Search,
   Send,
+  Server,
   Share2,
   Shield,
   SlidersHorizontal,
@@ -56,6 +64,12 @@ export function App() {
   const [notice, setNotice] = useState('Zinh is online now');
   const [visitors, setVisitors] = useState(12048);
   const [music, setMusic] = useState(false);
+  const [publicIp, setPublicIp] = useState('Checking...');
+  const [generatedPassword, setGeneratedPassword] = useState('');
+  const [urlInput, setUrlInput] = useState('https://example.com');
+  const [urlResult, setUrlResult] = useState('Ready');
+  const [hashInput, setHashInput] = useState('Zinh');
+  const [hashResult, setHashResult] = useState('');
   const audioRef = useRef<{ ctx: AudioContext; osc: OscillatorNode; gain: GainNode } | null>(null);
   const clock = useClock();
   const copyGuardRef = useRef<HTMLDivElement | null>(null);
@@ -115,6 +129,13 @@ export function App() {
       setNotice(messages[Math.floor(Math.random() * messages.length)]);
     }, 5200);
     return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    fetch('https://api.ipify.org?format=json', { cache: 'no-store' })
+      .then((response) => response.json())
+      .then((data: { ip?: string }) => setPublicIp(data.ip ?? 'Unavailable'))
+      .catch(() => setPublicIp('Unavailable'));
   }, []);
 
   useEffect(() => {
@@ -227,6 +248,41 @@ export function App() {
     }
   };
 
+  const browserDetails = getBrowserDetails();
+  const networkDetails = getNetworkDetails();
+
+  const copyValue = async (value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setNotice('Copied to clipboard');
+    } catch {
+      setNotice('Clipboard unavailable');
+    }
+  };
+
+  const generatePassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*_-+=';
+    const bytes = new Uint32Array(18);
+    crypto.getRandomValues(bytes);
+    const password = Array.from(bytes, (value) => chars[value % chars.length]).join('');
+    setGeneratedPassword(password);
+  };
+
+  const inspectUrl = () => {
+    try {
+      const parsed = new URL(urlInput);
+      setUrlResult(`${parsed.protocol.replace(':', '').toUpperCase()} | ${parsed.hostname} | ${parsed.pathname || '/'}`);
+    } catch {
+      setUrlResult('Invalid URL');
+    }
+  };
+
+  const hashText = async () => {
+    const bytes = new TextEncoder().encode(hashInput);
+    const digest = await crypto.subtle.digest('SHA-256', bytes);
+    setHashResult(Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join(''));
+  };
+
   if (isAdminRoute) {
     return (
       <AdminPage
@@ -260,7 +316,7 @@ export function App() {
             ZINH<span className="text-neon-cyan">.OS</span>
           </a>
           <div className="hidden items-center gap-5 text-sm text-slate-300 md:flex">
-            {['about', 'social', 'portfolio', 'stats', 'gallery', 'contact'].map((item) => (
+            {['about', 'social', 'portfolio', 'stats', 'toolkit', 'gallery', 'contact'].map((item) => (
               <a key={item} href={`#${item}`} className="hover:text-neon-cyan">
                 {item}
               </a>
@@ -404,6 +460,104 @@ export function App() {
           </div>
         </Section>
 
+        <Section id="toolkit" eyebrow="Operator Tools" title="IT Toolkit">
+          <div className="toolkit-grid">
+            <div className="glass toolkit-panel">
+              <div className="toolkit-head">
+                <Router className="text-neon-cyan" />
+                <div>
+                  <h3>Network Scanner</h3>
+                  <span>Public IP and connection context</span>
+                </div>
+              </div>
+              <div className="toolkit-readout">
+                <span>Public IP</span>
+                <strong>{publicIp}</strong>
+                <button className="icon-btn" onClick={() => copyValue(publicIp)} aria-label="Copy IP"><Copy size={15} /></button>
+              </div>
+              <div className="toolkit-mini-grid">
+                <InfoPill label="Protocol" value={window.location.protocol.replace(':', '').toUpperCase()} />
+                <InfoPill label="Host" value={window.location.hostname} />
+                <InfoPill label="Network" value={networkDetails.type} />
+                <InfoPill label="Speed" value={networkDetails.downlink} />
+              </div>
+              <button className="secondary-btn w-fit" onClick={() => window.location.reload()}>
+                <RefreshCw size={16} /> Refresh Probe
+              </button>
+            </div>
+
+            <div className="glass toolkit-panel">
+              <div className="toolkit-head">
+                <MonitorSmartphone className="text-neon-cyan" />
+                <div>
+                  <h3>Browser Fingerprint</h3>
+                  <span>Live client diagnostics</span>
+                </div>
+              </div>
+              <div className="toolkit-mini-grid">
+                <InfoPill label="Browser" value={browserDetails.browser} />
+                <InfoPill label="OS" value={browserDetails.os} />
+                <InfoPill label="Language" value={navigator.language} />
+                <InfoPill label="Timezone" value={Intl.DateTimeFormat().resolvedOptions().timeZone} />
+                <InfoPill label="Screen" value={`${screen.width}x${screen.height}`} />
+                <InfoPill label="Viewport" value={`${window.innerWidth}x${window.innerHeight}`} />
+              </div>
+              <button className="secondary-btn w-fit" onClick={() => copyValue(navigator.userAgent)}>
+                <Fingerprint size={16} /> Copy User Agent
+              </button>
+            </div>
+
+            <div className="glass toolkit-panel">
+              <div className="toolkit-head">
+                <Search className="text-neon-cyan" />
+                <div>
+                  <h3>URL Inspector</h3>
+                  <span>Parse protocol, host, and path</span>
+                </div>
+              </div>
+              <input value={urlInput} onChange={(event) => setUrlInput(event.target.value)} aria-label="URL inspector" />
+              <div className="toolkit-output">{urlResult}</div>
+              <button className="primary-btn w-fit" onClick={inspectUrl}>Analyze URL</button>
+            </div>
+
+            <div className="glass toolkit-panel">
+              <div className="toolkit-head">
+                <KeyRound className="text-neon-cyan" />
+                <div>
+                  <h3>Security Utility</h3>
+                  <span>Password and SHA-256 helper</span>
+                </div>
+              </div>
+              <button className="primary-btn w-fit" onClick={generatePassword}>Generate Password</button>
+              <div className="toolkit-output with-copy">
+                <span>{generatedPassword || 'No password generated yet'}</span>
+                <button className="icon-btn" onClick={() => copyValue(generatedPassword)} aria-label="Copy password"><CopyCheck size={15} /></button>
+              </div>
+              <input value={hashInput} onChange={(event) => setHashInput(event.target.value)} aria-label="Hash input" />
+              <button className="secondary-btn w-fit" onClick={hashText}>SHA-256 Hash</button>
+              <div className="toolkit-output hash">{hashResult || 'Hash output'}</div>
+            </div>
+
+            <div className="glass toolkit-panel toolkit-wide">
+              <div className="toolkit-head">
+                <Server className="text-neon-cyan" />
+                <div>
+                  <h3>System Snapshot</h3>
+                  <span>Useful data for IT support tickets</span>
+                </div>
+              </div>
+              <div className="toolkit-mini-grid dense">
+                <InfoPill label="Cookies" value={navigator.cookieEnabled ? 'Enabled' : 'Blocked'} />
+                <InfoPill label="Online" value={navigator.onLine ? 'Online' : 'Offline'} />
+                <InfoPill label="CPU Cores" value={String(navigator.hardwareConcurrency ?? 'Unknown')} />
+                <InfoPill label="Device Memory" value={getDeviceMemory()} />
+                <InfoPill label="Color Depth" value={`${screen.colorDepth} bit`} />
+                <InfoPill label="Touch Points" value={String(navigator.maxTouchPoints ?? 0)} />
+              </div>
+            </div>
+          </div>
+        </Section>
+
         <Section id="contact" eyebrow="Contact Center" title="Connect With Zinh">
           <div className="grid gap-6 lg:grid-cols-[1fr_0.85fr]">
             <form className="glass grid gap-4 p-6" onSubmit={(event) => { event.preventDefault(); setNotice('Message encrypted and queued'); }}>
@@ -495,6 +649,62 @@ function Widget({ icon: Icon, label, value }: { icon: LucideIcon; label: string;
       <strong>{value}</strong>
     </div>
   );
+}
+
+function InfoPill({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="info-pill">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function getBrowserDetails() {
+  const ua = navigator.userAgent;
+  const browser =
+    ua.includes('Edg/')
+      ? 'Microsoft Edge'
+      : ua.includes('OPR/')
+        ? 'Opera'
+        : ua.includes('Chrome/')
+          ? 'Google Chrome'
+          : ua.includes('Firefox/')
+            ? 'Mozilla Firefox'
+            : ua.includes('Safari/')
+              ? 'Safari'
+              : 'Unknown';
+
+  const os =
+    ua.includes('Windows')
+      ? 'Windows'
+      : ua.includes('Android')
+        ? 'Android'
+        : ua.includes('iPhone') || ua.includes('iPad')
+          ? 'iOS'
+          : ua.includes('Mac OS')
+            ? 'macOS'
+            : ua.includes('Linux')
+              ? 'Linux'
+              : 'Unknown';
+
+  return { browser, os };
+}
+
+function getNetworkDetails() {
+  const connection = (navigator as Navigator & {
+    connection?: { effectiveType?: string; downlink?: number };
+  }).connection;
+
+  return {
+    type: connection?.effectiveType?.toUpperCase() ?? 'Unknown',
+    downlink: connection?.downlink ? `${connection.downlink} Mbps` : 'Unknown'
+  };
+}
+
+function getDeviceMemory() {
+  const memory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
+  return memory ? `${memory} GB` : 'Unknown';
 }
 
 function AdminPage({
