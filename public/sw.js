@@ -1,4 +1,4 @@
-const CACHE = 'zinh-cyber-profile-v3';
+const CACHE = 'zinh-cyber-profile-v4';
 const ASSETS = ['/manifest.webmanifest', '/assets/zinh-avatar.png'];
 
 self.addEventListener('install', (event) => {
@@ -31,14 +31,6 @@ self.addEventListener('fetch', (event) => {
   }
 
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request).then((response) => {
-        if (!response.ok) return response;
-        const copy = response.clone();
-        caches.open(CACHE).then((cache) => cache.put(event.request, copy));
-        return response;
-      });
-    })
+    fetch(event.request).catch(() => caches.match(event.request).then((cached) => cached || Response.error()))
   );
 });

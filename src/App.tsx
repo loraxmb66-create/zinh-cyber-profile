@@ -49,6 +49,7 @@ export function App() {
   const [rain, setRain] = useState(true);
   const [accent, setAccent] = useState('#27fff2');
   const [clickSound, setClickSound] = useState(true);
+  const [syncing, setSyncing] = useState(true);
   const [category, setCategory] = useState<ProjectCategory>('All');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [lightbox, setLightbox] = useState<GalleryViewItem | null>(null);
@@ -76,12 +77,16 @@ export function App() {
 
   useEffect(() => {
     let active = true;
+    setSyncing(true);
     loadRemoteSiteContent()
       .then((remoteContent) => {
         if (active) setContent(remoteContent);
       })
       .catch(() => {
         if (active) setNotice('Using offline content cache');
+      })
+      .finally(() => {
+        if (active) setSyncing(false);
       });
 
     return () => {
@@ -228,6 +233,7 @@ export function App() {
         content={content}
         onSave={handleSaveContent}
         onReload={handleReloadContent}
+        syncing={syncing}
       />
     );
   }
@@ -261,7 +267,7 @@ export function App() {
             ))}
           </div>
           <div className="flex items-center gap-2">
-            <span className="status-dot" />
+            {syncing ? <span className="sync-pill">Syncing</span> : <span className="status-dot" />}
             <a className="icon-btn" href="/admin" aria-label="Admin">
               <Shield size={15} />
             </a>
@@ -494,11 +500,13 @@ function Widget({ icon: Icon, label, value }: { icon: LucideIcon; label: string;
 function AdminPage({
   content,
   onSave,
-  onReload
+  onReload,
+  syncing
 }: {
   content: SiteContent;
   onSave: (content: SiteContent) => Promise<SiteContent>;
   onReload: () => Promise<SiteContent>;
+  syncing: boolean;
 }) {
   const [authed, setAuthed] = useState(() => window.localStorage.getItem(ADMIN_SESSION_KEY) === 'active');
   const [login, setLogin] = useState({ username: '', password: '' });
@@ -637,7 +645,7 @@ function AdminPage({
           <div>
             <p className="admin-kicker">Control Center</p>
             <h1>Chinh sua giao dien Zinh</h1>
-            <span>{message || (dirty ? 'Ban co thay doi chua luu.' : 'Noi dung duoc luu len Supabase va co localStorage lam cache du phong.')}</span>
+            <span>{message || (syncing ? 'Dang dong bo du lieu tu Supabase...' : dirty ? 'Ban co thay doi chua luu.' : 'Du lieu da dong bo voi Supabase.')}</span>
           </div>
           <div className="flex flex-wrap gap-2">
             <button className="primary-btn" type="submit" disabled={saving}><Upload size={18} /> {saving ? 'Dang luu' : 'Luu thay doi'}</button>

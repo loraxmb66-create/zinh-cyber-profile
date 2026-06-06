@@ -92,7 +92,11 @@ export function cacheSiteContent(content: SiteContent) {
 }
 
 export async function loadRemoteSiteContent(): Promise<SiteContent> {
-  const { data, error } = await supabase.from('site_content').select('content').eq('id', CONTENT_ROW_ID).maybeSingle();
+  const { data, error } = await supabase
+    .from('site_content')
+    .select('content, updated_at')
+    .eq('id', CONTENT_ROW_ID)
+    .maybeSingle();
 
   if (error) {
     throw new Error([error.message, error.details, error.hint, error.code].filter(Boolean).join(' | '));
