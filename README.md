@@ -39,4 +39,33 @@ admin / 123456Dinh
 
 The admin page can edit the main profile text, avatar, gallery images, social URLs, contact buttons, highlight banner, and footer content.
 
-Current storage: browser `localStorage`. This works for a static Vercel site, but edits are stored per browser. For edits shared across all visitors, connect a backend database or CMS later.
+Current storage: Supabase table `site_content`, with browser `localStorage` as fallback cache.
+
+Run this SQL in Supabase SQL Editor before saving from admin:
+
+```sql
+create table if not exists public.site_content (
+  id text primary key,
+  content jsonb not null,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.site_content enable row level security;
+
+drop policy if exists "Public read site content" on public.site_content;
+create policy "Public read site content"
+on public.site_content
+for select
+to anon
+using (true);
+
+drop policy if exists "Public write site content" on public.site_content;
+create policy "Public write site content"
+on public.site_content
+for all
+to anon
+using (id = 'main')
+with check (id = 'main');
+```
+
+The current admin login is frontend-only (`admin / 123456Dinh`). For real security, replace this with Supabase Auth and stricter RLS policies.

@@ -1,3 +1,5 @@
+import { supabase } from '../lib/supabase';
+
 export type EditableSocial = {
   name: string;
   handle: string;
@@ -29,6 +31,7 @@ export type SiteContent = {
 
 export const CONTENT_STORAGE_KEY = 'zinh-site-content-v1';
 export const ADMIN_SESSION_KEY = 'zinh-admin-session-v1';
+const CONTENT_ROW_ID = 'main';
 
 export const defaultSiteContent: SiteContent = {
   name: 'Zinh',
@@ -80,6 +83,43 @@ export function loadSiteContent(): SiteContent {
   }
 }
 
-export function saveSiteContent(content: SiteContent) {
+export function cacheSiteContent(content: SiteContent) {
   window.localStorage.setItem(CONTENT_STORAGE_KEY, JSON.stringify(content));
+}
+
+export async function loadRemoteSiteContent(): Promise<SiteContent> {
+  const { data, error } = await supabase.from('site_content').select('content').eq('id', CONTENT_ROW_ID).maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data?.content) {
+    return loadSiteContent();
+  }
+
+  const parsed = data.content as unknown as Partial<SiteContent>;
+  const content = {
+    ...defaultSiteContent,
+    ...parsed,
+    socials: parsed.socials?.length ? parsed.socials : defaultSiteContent.socials,
+    gallery: parsed.gallery?.length ? parsed.gallery : defaultSiteContent.gallery
+  };
+
+  cacheSiteContent(content);
+  return content;
+}
+
+export async function saveSiteContent(content: SiteContent): Promise<void> {
+  cacheSiteContent(content);
+
+  const { error } = await supabase.from('site_content').upsert({
+    id: CONTENT_ROW_ID,
+    content,
+    updated_at: new Date().toISOString()
+  });
+
+  if (error) {
+    throw error;
+  }
 }

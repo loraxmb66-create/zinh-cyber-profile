@@ -29,7 +29,7 @@ import type { CSSProperties, FormEvent, ReactNode } from 'react';
 import { CursorAura } from './components/CursorAura';
 import { NeuralBackground } from './components/NeuralBackground';
 import { Section } from './components/Section';
-import { ADMIN_SESSION_KEY, defaultSiteContent, loadSiteContent, saveSiteContent } from './data/adminContent';
+import { ADMIN_SESSION_KEY, defaultSiteContent, loadRemoteSiteContent, loadSiteContent, saveSiteContent } from './data/adminContent';
 import type { SiteContent } from './data/adminContent';
 import { badges, gallery, projects, skills, socials, stats, timeline, translations } from './data/profile';
 import type { Project, ProjectCategory } from './data/profile';
@@ -72,6 +72,21 @@ export function App() {
   useEffect(() => {
     const timer = window.setTimeout(() => setLoaded(true), 900);
     return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    loadRemoteSiteContent()
+      .then((remoteContent) => {
+        if (active) setContent(remoteContent);
+      })
+      .catch(() => {
+        if (active) setNotice('Using offline content cache');
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -161,10 +176,10 @@ export function App() {
     };
   }, [clickSound]);
 
-  const handleSaveContent = (nextContent: SiteContent) => {
-    saveSiteContent(nextContent);
+  const handleSaveContent = async (nextContent: SiteContent) => {
+    await saveSiteContent(nextContent);
     setContent(nextContent);
-    setNotice('Admin changes saved');
+    setNotice('Admin changes saved to Supabase');
   };
 
   const toggleMusic = () => {
@@ -469,11 +484,16 @@ function Widget({ icon: Icon, label, value }: { icon: LucideIcon; label: string;
   );
 }
 
-function AdminPage({ content, onSave, onReset }: { content: SiteContent; onSave: (content: SiteContent) => void; onReset: () => void }) {
+function AdminPage({ content, onSave, onReset }: { content: SiteContent; onSave: (content: SiteContent) => Promise<void>; onReset: () => void }) {
   const [authed, setAuthed] = useState(() => window.localStorage.getItem(ADMIN_SESSION_KEY) === 'active');
   const [login, setLogin] = useState({ username: '', password: '' });
   const [draft, setDraft] = useState<SiteContent>(content);
   const [message, setMessage] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setDraft(content);
+  }, [content]);
 
   const submitLogin = (event: FormEvent) => {
     event.preventDefault();
@@ -513,10 +533,18 @@ function AdminPage({ content, onSave, onReset }: { content: SiteContent; onSave:
     reader.readAsDataURL(file);
   };
 
-  const save = (event: FormEvent) => {
+  const save = async (event: FormEvent) => {
     event.preventDefault();
-    onSave(draft);
-    setMessage('Da luu noi dung. Quay ve trang chu de xem thay doi.');
+    setSaving(true);
+    setMessage('Dang luu len Supabase...');
+    try {
+      await onSave(draft);
+      setMessage('Da luu len Supabase. Tat ca nguoi xem se thay noi dung moi.');
+    } catch {
+      setMessage('Chua luu duoc len Supabase. Kiem tra bang site_content va RLS policy.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (!authed) {
@@ -561,10 +589,10 @@ function AdminPage({ content, onSave, onReset }: { content: SiteContent; onSave:
           <div>
             <p className="admin-kicker">Control Center</p>
             <h1>Chinh sua giao dien Zinh</h1>
-            <span>{message || 'Noi dung duoc luu tren trinh duyet bang localStorage.'}</span>
+            <span>{message || 'Noi dung duoc luu len Supabase va co localStorage lam cache du phong.'}</span>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button className="primary-btn" type="submit"><Upload size={18} /> Luu thay doi</button>
+            <button className="primary-btn" type="submit" disabled={saving}><Upload size={18} /> {saving ? 'Dang luu' : 'Luu thay doi'}</button>
             <button className="secondary-btn" type="button" onClick={() => { setDraft(defaultSiteContent); onReset(); }}>
               Khoi phuc mac dinh
             </button>
