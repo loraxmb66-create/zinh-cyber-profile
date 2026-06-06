@@ -52,6 +52,9 @@ create table if not exists public.site_content (
 
 alter table public.site_content enable row level security;
 
+grant usage on schema public to anon, authenticated;
+grant select, insert, update on public.site_content to anon, authenticated;
+
 drop policy if exists "Public read site content" on public.site_content;
 create policy "Public read site content"
 on public.site_content

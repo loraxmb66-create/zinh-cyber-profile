@@ -540,8 +540,9 @@ function AdminPage({ content, onSave, onReset }: { content: SiteContent; onSave:
     try {
       await onSave(draft);
       setMessage('Da luu len Supabase. Tat ca nguoi xem se thay noi dung moi.');
-    } catch {
-      setMessage('Chua luu duoc len Supabase. Kiem tra bang site_content va RLS policy.');
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : 'Unknown Supabase error';
+      setMessage(`Chua luu duoc len Supabase: ${detail}`);
     } finally {
       setSaving(false);
     }
