@@ -28,3 +28,15 @@ Tài sản dự án được tạo:
 - `public/assets/zinh-avatar.png`
 
 # zinh-cyber-profile
+
+## Admin
+
+Open `/admin` and log in with:
+
+```text
+admin / 123456Dinh
+```
+
+The admin page can edit the main profile text, avatar, gallery images, social URLs, contact buttons, highlight banner, and footer content.
+
+Current storage: browser `localStorage`. This works for a static Vercel site, but edits are stored per browser. For edits shared across all visitors, connect a backend database or CMS later.

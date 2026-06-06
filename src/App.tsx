@@ -5,6 +5,8 @@ import {
   Clock3,
   CloudSun,
   Copy,
+  Image as ImageIcon,
+  LockKeyhole,
   Mail,
   MessageCircle,
   MoonStar,
@@ -13,18 +15,22 @@ import {
   QrCode,
   Send,
   Share2,
+  Shield,
   SlidersHorizontal,
   Snowflake,
   Sparkles,
+  Upload,
   Volume2,
   X,
   Zap
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { CSSProperties, ReactNode } from 'react';
+import type { CSSProperties, FormEvent, ReactNode } from 'react';
 import { CursorAura } from './components/CursorAura';
 import { NeuralBackground } from './components/NeuralBackground';
 import { Section } from './components/Section';
+import { ADMIN_SESSION_KEY, defaultSiteContent, loadSiteContent, saveSiteContent } from './data/adminContent';
+import type { SiteContent } from './data/adminContent';
 import { badges, gallery, projects, skills, socials, stats, timeline, translations } from './data/profile';
 import type { Project, ProjectCategory } from './data/profile';
 import { useClock } from './hooks/useClock';
@@ -32,8 +38,10 @@ import { useTyping } from './hooks/useTyping';
 import type { LucideIcon } from 'lucide-react';
 
 const categories: ProjectCategory[] = ['All', 'Web', 'AI', 'Design', 'Security'];
+type GalleryViewItem = (typeof gallery)[number] & { imageUrl?: string };
 
 export function App() {
+  const [content, setContent] = useState<SiteContent>(() => loadSiteContent());
   const [loaded, setLoaded] = useState(false);
   const [language, setLanguage] = useState<'en' | 'vi'>('en');
   const [matrix, setMatrix] = useState(false);
@@ -42,16 +50,19 @@ export function App() {
   const [accent, setAccent] = useState('#27fff2');
   const [category, setCategory] = useState<ProjectCategory>('All');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [lightbox, setLightbox] = useState<(typeof gallery)[number] | null>(null);
+  const [lightbox, setLightbox] = useState<GalleryViewItem | null>(null);
   const [notice, setNotice] = useState('Zinh is online now');
   const [visitors, setVisitors] = useState(12048);
   const [music, setMusic] = useState(false);
   const audioRef = useRef<{ ctx: AudioContext; osc: OscillatorNode; gain: GainNode } | null>(null);
   const clock = useClock();
   const copyGuardRef = useRef<HTMLDivElement | null>(null);
+  const isAdminRoute = window.location.pathname.replace(/\/$/, '') === '/admin';
 
   const t = translations[language];
   const typing = useTyping(t.typing);
+  const mergedSocials = socials.map((social, index) => ({ ...social, ...(content.socials[index] ?? {}) }));
+  const mergedGallery = gallery.map((item, index) => ({ ...item, ...(content.gallery[index] ?? {}) }));
   const filteredProjects = useMemo(
     () => (category === 'All' ? projects : projects.filter((project) => project.category === category)),
     [category]
@@ -111,6 +122,12 @@ export function App() {
     document.documentElement.style.setProperty('--accent', accent);
   }, [accent]);
 
+  const handleSaveContent = (nextContent: SiteContent) => {
+    saveSiteContent(nextContent);
+    setContent(nextContent);
+    setNotice('Admin changes saved');
+  };
+
   const toggleMusic = () => {
     if (music) {
       audioRef.current?.ctx.close();
@@ -144,6 +161,16 @@ export function App() {
     }
   };
 
+  if (isAdminRoute) {
+    return (
+      <AdminPage
+        content={content}
+        onSave={handleSaveContent}
+        onReset={() => handleSaveContent(defaultSiteContent)}
+      />
+    );
+  }
+
   return (
     <div ref={copyGuardRef} className={`min-h-screen bg-void text-slate-100 ${matrix ? 'matrix-mode' : ''}`}>
       <AnimatePresence>
@@ -174,6 +201,9 @@ export function App() {
           </div>
           <div className="flex items-center gap-2">
             <span className="status-dot" />
+            <a className="icon-btn" href="/admin" aria-label="Admin">
+              <Shield size={15} />
+            </a>
             <button className="icon-btn" onClick={() => setLanguage(language === 'en' ? 'vi' : 'en')} aria-label="Switch language">
               {language.toUpperCase()}
             </button>
@@ -185,13 +215,13 @@ export function App() {
         <section id="hero" className="relative z-10 mx-auto grid min-h-[calc(100vh-4rem)] max-w-7xl items-center gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1.05fr_0.95fr] lg:px-8">
           <div className="gsap-rise">
             <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-neon-cyan/30 bg-neon-cyan/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.3em] text-neon-cyan">
-              <Sparkles size={14} /> Online Profile
+              <Sparkles size={14} /> {content.heroBadge}
             </p>
             <h1 className="font-display text-5xl font-black leading-tight text-white sm:text-7xl lg:text-8xl">
-              Zinh
+              {content.name}
               <span className="block text-glow text-2xl text-neon-cyan sm:text-4xl">{typing}<span className="typing-caret">|</span></span>
             </h1>
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-300">{t.slogan}</p>
+            <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-300">{language === 'en' ? content.slogan : t.slogan}</p>
             <div className="mt-8 flex flex-wrap gap-3">
               <a href="#portfolio" className="primary-btn">
                 View Portfolio <ChevronRight size={18} />
@@ -204,17 +234,17 @@ export function App() {
 
           <motion.div className="avatar-shell gsap-rise" animate={{ y: [0, -10, 0] }} transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}>
             <div className="avatar-ring">
-              <img src="/assets/zinh-avatar.png" alt="Zinh cyberpunk avatar" loading="eager" />
+              <img src={content.avatarUrl || '/assets/zinh-avatar.png'} alt="Zinh cyberpunk avatar" loading="eager" />
             </div>
             <div className="profile-card">
-              <span className="status-dot" /> Live status: Online
+              <span className="status-dot" /> {content.statusText}
             </div>
           </motion.div>
         </section>
 
         <Section id="about" eyebrow="Identity Core" title="About Me">
           <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-            <div className="glass p-6 text-slate-300">{t.intro}</div>
+            <div className="glass p-6 text-slate-300">{language === 'en' ? content.intro : t.intro}</div>
             <div className="grid gap-4 sm:grid-cols-2">
               {skills.map((skill) => {
                 const Icon = skill.icon;
@@ -241,7 +271,7 @@ export function App() {
 
         <Section id="social" eyebrow="Signal Network" title="Social Hub">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {socials.map((social) => {
+            {mergedSocials.map((social) => {
               const Icon = social.icon;
               return (
                 <a className="social-card" href={social.url} key={social.name} style={{ '--social': social.accent } as CSSProperties}>
@@ -294,8 +324,13 @@ export function App() {
 
         <Section id="gallery" eyebrow="Visual Archive" title="Gallery">
           <div className="columns-1 gap-4 sm:columns-2 lg:columns-3">
-            {gallery.map((item) => (
-              <button className={`gallery-tile ${item.height} bg-gradient-to-br ${item.tone}`} key={item.title} onClick={() => setLightbox(item)}>
+            {mergedGallery.map((item) => (
+              <button
+                className={`gallery-tile ${item.height} bg-gradient-to-br ${item.tone}`}
+                key={item.title}
+                onClick={() => setLightbox(item)}
+                style={item.imageUrl ? { backgroundImage: `linear-gradient(rgba(0,0,0,.12), rgba(0,0,0,.55)), url(${item.imageUrl})` } : undefined}
+              >
                 <span>{item.title}</span>
               </button>
             ))}
@@ -312,9 +347,9 @@ export function App() {
             </form>
             <div className="grid gap-4">
               <div className="glass grid grid-cols-3 gap-3 p-5">
-                <a className="contact-btn" href="mailto:zinh@example.com"><Mail /> Email</a>
-                <a className="contact-btn" href="https://m.me"><MessageCircle /> Messenger</a>
-                <a className="contact-btn" href="https://telegram.org"><Send /> Telegram</a>
+                <a className="contact-btn" href={`mailto:${content.email}`}><Mail /> Email</a>
+                <a className="contact-btn" href={content.messengerUrl}><MessageCircle /> Messenger</a>
+                <a className="contact-btn" href={content.telegramUrl}><Send /> Telegram</a>
               </div>
               <div className="glass flex items-center gap-5 p-5">
                 <div className="qr"><QrCode size={92} /></div>
@@ -333,6 +368,20 @@ export function App() {
             </div>
           </div>
         </Section>
+        <section className="relative z-10 mx-auto max-w-7xl px-4 pb-24 sm:px-6 lg:px-8">
+          <div className="highlight-band">
+            <div>
+              <p>{content.highlightTitle}</p>
+              <h2>{content.highlightText}</h2>
+            </div>
+            <a href="#contact" className="primary-btn">Connect Now <ChevronRight size={18} /></a>
+          </div>
+          <footer className="site-footer">
+            <strong>{content.footerTitle}</strong>
+            <span>{content.footerText}</span>
+            <a href="/admin">Admin</a>
+          </footer>
+        </section>
       </main>
 
       <aside className="control-panel">
@@ -355,7 +404,10 @@ export function App() {
         )}
         {lightbox && (
           <Modal onClose={() => setLightbox(null)}>
-            <div className={`lightbox-art bg-gradient-to-br ${lightbox.tone}`} />
+            <div
+              className={`lightbox-art bg-gradient-to-br ${lightbox.tone}`}
+              style={'imageUrl' in lightbox && lightbox.imageUrl ? { backgroundImage: `linear-gradient(rgba(0,0,0,.08), rgba(0,0,0,.42)), url(${lightbox.imageUrl})` } : undefined}
+            />
             <h3>{lightbox.title}</h3>
             <p>High-contrast holographic gallery frame with responsive lightbox viewing.</p>
           </Modal>
@@ -371,6 +423,180 @@ function Widget({ icon: Icon, label, value }: { icon: LucideIcon; label: string;
       <Icon className="text-neon-cyan" />
       <span>{label}</span>
       <strong>{value}</strong>
+    </div>
+  );
+}
+
+function AdminPage({ content, onSave, onReset }: { content: SiteContent; onSave: (content: SiteContent) => void; onReset: () => void }) {
+  const [authed, setAuthed] = useState(() => window.localStorage.getItem(ADMIN_SESSION_KEY) === 'active');
+  const [login, setLogin] = useState({ username: '', password: '' });
+  const [draft, setDraft] = useState<SiteContent>(content);
+  const [message, setMessage] = useState('');
+
+  const submitLogin = (event: FormEvent) => {
+    event.preventDefault();
+    if (login.username === 'admin' && login.password === '123456Dinh') {
+      window.localStorage.setItem(ADMIN_SESSION_KEY, 'active');
+      setAuthed(true);
+      setMessage('Dang nhap thanh cong');
+      return;
+    }
+    setMessage('Sai tai khoan hoac mat khau');
+  };
+
+  const updateDraft = (key: keyof SiteContent, value: string) => {
+    setDraft((current) => ({ ...current, [key]: value }));
+  };
+
+  const updateSocial = (index: number, key: 'handle' | 'url', value: string) => {
+    setDraft((current) => ({
+      ...current,
+      socials: current.socials.map((item, itemIndex) => (itemIndex === index ? { ...item, [key]: value } : item))
+    }));
+  };
+
+  const updateGallery = (index: number, key: 'title' | 'imageUrl', value: string) => {
+    setDraft((current) => ({
+      ...current,
+      gallery: current.gallery.map((item, itemIndex) => (itemIndex === index ? { ...item, [key]: value } : item))
+    }));
+  };
+
+  const uploadImage = (file: File | undefined, callback: (value: string) => void) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') callback(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const save = (event: FormEvent) => {
+    event.preventDefault();
+    onSave(draft);
+    setMessage('Da luu noi dung. Quay ve trang chu de xem thay doi.');
+  };
+
+  if (!authed) {
+    return (
+      <div className="admin-page">
+        <NeuralBackground matrix />
+        <form className="admin-login glass" onSubmit={submitLogin}>
+          <LockKeyhole className="text-neon-cyan" size={34} />
+          <h1>Admin Access</h1>
+          <p>Dang nhap de chinh sua noi dung website.</p>
+          <input value={login.username} onChange={(event) => setLogin({ ...login, username: event.target.value })} placeholder="Tai khoan" />
+          <input value={login.password} onChange={(event) => setLogin({ ...login, password: event.target.value })} placeholder="Mat khau" type="password" />
+          <button className="primary-btn w-full" type="submit">Dang nhap <ChevronRight size={18} /></button>
+          {message && <span className="admin-message">{message}</span>}
+          <a href="/" className="secondary-btn w-full">Ve trang chu</a>
+        </form>
+      </div>
+    );
+  }
+
+  return (
+    <div className="admin-page">
+      <NeuralBackground matrix={false} />
+      <header className="admin-topbar">
+        <a href="/" className="font-display text-lg font-black text-white">ZINH<span className="text-neon-cyan">.ADMIN</span></a>
+        <div className="flex gap-2">
+          <button
+            className="secondary-btn"
+            onClick={() => {
+              window.localStorage.removeItem(ADMIN_SESSION_KEY);
+              setAuthed(false);
+            }}
+          >
+            Dang xuat
+          </button>
+          <a className="primary-btn" href="/">Xem website</a>
+        </div>
+      </header>
+
+      <form className="admin-shell" onSubmit={save}>
+        <section className="admin-hero-panel glass">
+          <div>
+            <p className="admin-kicker">Control Center</p>
+            <h1>Chinh sua giao dien Zinh</h1>
+            <span>{message || 'Noi dung duoc luu tren trinh duyet bang localStorage.'}</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button className="primary-btn" type="submit"><Upload size={18} /> Luu thay doi</button>
+            <button className="secondary-btn" type="button" onClick={() => { setDraft(defaultSiteContent); onReset(); }}>
+              Khoi phuc mac dinh
+            </button>
+          </div>
+        </section>
+
+        <section className="admin-grid">
+          <div className="glass admin-card">
+            <h2>Noi dung chinh</h2>
+            <label>Ten hien thi<input value={draft.name} onChange={(event) => updateDraft('name', event.target.value)} /></label>
+            <label>Badge hero<input value={draft.heroBadge} onChange={(event) => updateDraft('heroBadge', event.target.value)} /></label>
+            <label>Trang thai<input value={draft.statusText} onChange={(event) => updateDraft('statusText', event.target.value)} /></label>
+            <label>Slogan<textarea rows={3} value={draft.slogan} onChange={(event) => updateDraft('slogan', event.target.value)} /></label>
+            <label>Gioi thieu<textarea rows={5} value={draft.intro} onChange={(event) => updateDraft('intro', event.target.value)} /></label>
+          </div>
+
+          <div className="glass admin-card">
+            <h2>Hinh anh</h2>
+            <div className="admin-preview">
+              <img src={draft.avatarUrl || '/assets/zinh-avatar.png'} alt="Avatar preview" />
+            </div>
+            <label>Avatar URL<input value={draft.avatarUrl} onChange={(event) => updateDraft('avatarUrl', event.target.value)} /></label>
+            <label className="upload-box">
+              <ImageIcon size={18} /> Tai anh avatar tu may
+              <input type="file" accept="image/*" onChange={(event) => uploadImage(event.target.files?.[0], (value) => updateDraft('avatarUrl', value))} />
+            </label>
+          </div>
+        </section>
+
+        <section className="glass admin-card">
+          <h2>Social links</h2>
+          <div className="admin-list">
+            {draft.socials.map((item, index) => (
+              <div className="admin-row" key={item.name}>
+                <strong>{item.name}</strong>
+                <input value={item.handle} onChange={(event) => updateSocial(index, 'handle', event.target.value)} placeholder="Handle" />
+                <input value={item.url} onChange={(event) => updateSocial(index, 'url', event.target.value)} placeholder="URL" />
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="glass admin-card">
+          <h2>Gallery</h2>
+          <div className="admin-list">
+            {draft.gallery.map((item, index) => (
+              <div className="admin-row" key={`${item.title}-${index}`}>
+                <input value={item.title} onChange={(event) => updateGallery(index, 'title', event.target.value)} placeholder="Ten anh" />
+                <input value={item.imageUrl} onChange={(event) => updateGallery(index, 'imageUrl', event.target.value)} placeholder="Image URL" />
+                <label className="upload-box compact">
+                  Upload
+                  <input type="file" accept="image/*" onChange={(event) => uploadImage(event.target.files?.[0], (value) => updateGallery(index, 'imageUrl', value))} />
+                </label>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="admin-grid">
+          <div className="glass admin-card">
+            <h2>Contact</h2>
+            <label>Email<input value={draft.email} onChange={(event) => updateDraft('email', event.target.value)} /></label>
+            <label>Messenger URL<input value={draft.messengerUrl} onChange={(event) => updateDraft('messengerUrl', event.target.value)} /></label>
+            <label>Telegram URL<input value={draft.telegramUrl} onChange={(event) => updateDraft('telegramUrl', event.target.value)} /></label>
+          </div>
+          <div className="glass admin-card">
+            <h2>Head / Footer noi bat</h2>
+            <label>Tieu de highlight<input value={draft.highlightTitle} onChange={(event) => updateDraft('highlightTitle', event.target.value)} /></label>
+            <label>Noi dung highlight<textarea rows={3} value={draft.highlightText} onChange={(event) => updateDraft('highlightText', event.target.value)} /></label>
+            <label>Footer title<input value={draft.footerTitle} onChange={(event) => updateDraft('footerTitle', event.target.value)} /></label>
+            <label>Footer text<textarea rows={3} value={draft.footerText} onChange={(event) => updateDraft('footerText', event.target.value)} /></label>
+          </div>
+        </section>
+      </form>
     </div>
   );
 }
