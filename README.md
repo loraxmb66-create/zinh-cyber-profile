@@ -27,6 +27,14 @@ npx prisma migrate dev
 npm run dev
 ```
 
+Manual SQL setup:
+
+```bash
+psql "$DATABASE_URL" -f database/lorax-hub.sql
+```
+
+Or paste [database/lorax-hub.sql](database/lorax-hub.sql) into Supabase SQL Editor.
+
 Local PostgreSQL with Docker:
 
 ```bash
