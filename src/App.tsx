@@ -122,6 +122,43 @@ export function App() {
     document.documentElement.style.setProperty('--accent', accent);
   }, [accent]);
 
+  useEffect(() => {
+    let ctx: AudioContext | null = null;
+    const interactiveSelector = 'button, a, input, textarea, select, label, [role="button"]';
+
+    const playClick = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target?.closest(interactiveSelector)) return;
+
+      const AudioCtor =
+        window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtor) return;
+
+      ctx ??= new AudioCtor();
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const now = ctx.currentTime;
+
+      oscillator.type = 'triangle';
+      oscillator.frequency.setValueAtTime(920, now);
+      oscillator.frequency.exponentialRampToValueAtTime(520, now + 0.045);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.055, now + 0.008);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.07);
+
+      oscillator.connect(gain);
+      gain.connect(ctx.destination);
+      oscillator.start(now);
+      oscillator.stop(now + 0.08);
+    };
+
+    window.addEventListener('pointerdown', playClick, { passive: true });
+    return () => {
+      window.removeEventListener('pointerdown', playClick);
+      ctx?.close();
+    };
+  }, []);
+
   const handleSaveContent = (nextContent: SiteContent) => {
     saveSiteContent(nextContent);
     setContent(nextContent);
