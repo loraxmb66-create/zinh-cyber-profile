@@ -12,7 +12,7 @@
       "static/chunks/4bd1b696-c023c6e3521b1417.js",
       "static/chunks/255-98a0bdaa30757bda.js",
       "static/chunks/main-app-02c2712a0cbbcf79.js",
-      "static/css/c41eddbc5bcb5cfb.css",
+      "static/css/0a056116aadd3fac.css",
       "static/chunks/app/layout-c7d159cc7ed5c0cc.js"
     ],
     "/api/auth/login/route": [
@@ -21,6 +21,13 @@
       "static/chunks/255-98a0bdaa30757bda.js",
       "static/chunks/main-app-02c2712a0cbbcf79.js",
       "static/chunks/app/api/auth/login/route-b415cd0a36d381db.js"
+    ],
+    "/api/docs/route": [
+      "static/chunks/webpack-043a5ecd81e4f86d.js",
+      "static/chunks/4bd1b696-c023c6e3521b1417.js",
+      "static/chunks/255-98a0bdaa30757bda.js",
+      "static/chunks/main-app-02c2712a0cbbcf79.js",
+      "static/chunks/app/api/docs/route-b415cd0a36d381db.js"
     ],
     "/api/files/route": [
       "static/chunks/webpack-043a5ecd81e4f86d.js",
@@ -35,13 +42,6 @@
       "static/chunks/255-98a0bdaa30757bda.js",
       "static/chunks/main-app-02c2712a0cbbcf79.js",
       "static/chunks/app/api/fivem/status/route-b415cd0a36d381db.js"
-    ],
-    "/api/docs/route": [
-      "static/chunks/webpack-043a5ecd81e4f86d.js",
-      "static/chunks/4bd1b696-c023c6e3521b1417.js",
-      "static/chunks/255-98a0bdaa30757bda.js",
-      "static/chunks/main-app-02c2712a0cbbcf79.js",
-      "static/chunks/app/api/docs/route-b415cd0a36d381db.js"
     ],
     "/api/links/route": [
       "static/chunks/webpack-043a5ecd81e4f86d.js",
@@ -97,8 +97,8 @@
       "static/chunks/4bd1b696-c023c6e3521b1417.js",
       "static/chunks/255-98a0bdaa30757bda.js",
       "static/chunks/main-app-02c2712a0cbbcf79.js",
-      "static/chunks/494-2ee472022cc02452.js",
-      "static/chunks/app/page-8d6dcfa858f2485d.js"
+      "static/chunks/360-546208a30c49f5e4.js",
+      "static/chunks/app/page-202b5977f9635984.js"
     ]
   }
 }

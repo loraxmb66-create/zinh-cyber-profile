@@ -1,0 +1,15 @@
+{
+  "/_not-found/page": "/_not-found",
+  "/api/auth/login/route": "/api/auth/login",
+  "/api/docs/route": "/api/docs",
+  "/api/files/route": "/api/files",
+  "/api/fivem/status/route": "/api/fivem/status",
+  "/api/links/route": "/api/links",
+  "/api/qr/route": "/api/qr",
+  "/api/status/route": "/api/status",
+  "/api/telegram/accounts/route": "/api/telegram/accounts",
+  "/api/visitors/route": "/api/visitors",
+  "/r/[slug]/route": "/r/[slug]",
+  "/api/ai/chat/route": "/api/ai/chat",
+  "/page": "/"
+}

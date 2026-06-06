@@ -2,38 +2,30 @@
 
 import { motion } from 'framer-motion';
 import {
-  Activity,
   ArrowRight,
-  Bot,
-  CheckCircle2,
   CloudUpload,
   Copy,
   Download,
   ExternalLink,
   FileText,
-  Globe2,
   Languages,
   Link2,
   LockKeyhole,
-  MessageSquareText,
   Moon,
   Play,
   Plus,
   QrCode,
-  Search,
   Send,
   Server,
-  ShieldCheck,
   Sun,
   Upload,
-  Users,
   Wifi
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import ReactMarkdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import remarkGfm from 'remark-gfm';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from './ui/button';
 import { Card, CardHeader } from './ui/card';
 import { Input, Textarea } from './ui/input';
@@ -53,35 +45,144 @@ const apiRows = [
   { name: 'FiveM Probe', status: 'Degraded', ping: '122ms', uptime: '98.41%' }
 ];
 
+function formatBytes(bytes: number) {
+  if (!bytes) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+  return `${(bytes / 1024 ** index).toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
+}
+
+type ApiRow = { name: string; status: string; ping: string; uptime: string };
+type UploadedFile = { name: string; size: string; progress: number; url?: string };
+type ChatMessage = { role: string; content: string };
+type LocalLink = { slug: string; targetUrl: string; shortUrl: string; clicks: number; createdAt: string };
+
+function readLocal<T>(key: string, fallback: T): T {
+  try {
+    const stored = window.localStorage.getItem(key);
+    return stored ? (JSON.parse(stored) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeLocal<T>(key: string, value: T) {
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Large uploaded data URLs can exceed browser quota; ignore and keep current session state.
+  }
+}
+
 export function LoraxHub() {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [lang, setLang] = useState<'EN' | 'VI'>('EN');
   const [chatInput, setChatInput] = useState('Write a secure API route for upload metadata.');
-  const [chatMessages, setChatMessages] = useState([
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     { role: 'assistant', content: 'Welcome to **LORAX AI**. Streaming, markdown, file-aware chat is API-ready.' }
   ]);
-  const [shortUrl, setShortUrl] = useState('https://lorax.dev/l/demo');
+  const [conversationTitle, setConversationTitle] = useState('Default Conversation');
+  const [targetUrl, setTargetUrl] = useState('https://lorax.dev/dashboard');
+  const [customSlug, setCustomSlug] = useState('demo');
+  const [shortUrl, setShortUrl] = useState('Create a short link to begin');
+  const [shortenerStatus, setShortenerStatus] = useState('API + local fallback ready');
+  const [linkHistory, setLinkHistory] = useState<LocalLink[]>([]);
   const [qrValue, setQrValue] = useState('https://lorax.dev');
   const [qrData, setQrData] = useState('');
-  const [uploadQueue, setUploadQueue] = useState([
+  const [uploadQueue, setUploadQueue] = useState<UploadedFile[]>([
     { name: 'network-audit.pdf', size: '2.8 MB', progress: 100 },
     { name: 'server-banner.png', size: '840 KB', progress: 72 }
   ]);
+  const [liveApiRows, setLiveApiRows] = useState<ApiRow[]>(apiRows);
+  const [apiStatusMessage, setApiStatusMessage] = useState('Ready to probe services');
+  const [fivemStatus, setFivemStatus] = useState({ name: 'LORAX Roleplay', online: 84, maxPlayers: 128, ping: 72 });
+  const [visitorStats, setVisitorStats] = useState({ total: '128,904', online: '247' });
+  const [adminLogin, setAdminLogin] = useState({ username: 'admin', password: '123456Dinh' });
+  const [adminStatus, setAdminStatus] = useState('Not authenticated');
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const modeClass = theme === 'dark' ? 'bg-[#0A0A0A] text-white' : 'bg-slate-100 text-slate-950';
   const aiPreview = useMemo(() => chatMessages.map((message) => message.content).join('\n'), [chatMessages]);
 
-  const sendChat = () => {
-    if (!chatInput.trim()) return;
-    setChatMessages((current) => [
-      ...current,
-      { role: 'user', content: chatInput },
-      {
-        role: 'assistant',
-        content: '```ts\nexport async function GET() {\n  return Response.json({ status: "secured" });\n}\n```\nThis response is mocked locally. Wire `/api/ai/chat` to your custom API for real streaming.'
+  useEffect(() => {
+    const savedChat = readLocal<ChatMessage[]>('lorax-chat-messages', chatMessages);
+    const savedLinks = readLocal<LocalLink[]>('lorax-short-links', []);
+    const savedFiles = readLocal<UploadedFile[]>('lorax-uploaded-files', uploadQueue);
+    setChatMessages(savedChat);
+    setLinkHistory(savedLinks);
+    setUploadQueue(savedFiles);
+
+    const redirectSlug = new URLSearchParams(window.location.search).get('go');
+    if (redirectSlug) {
+      const link = savedLinks.find((item) => item.slug === redirectSlug);
+      if (link) {
+        const updatedLinks = savedLinks.map((item) =>
+          item.slug === redirectSlug ? { ...item, clicks: item.clicks + 1 } : item
+        );
+        writeLocal('lorax-short-links', updatedLinks);
+        window.location.href = link.targetUrl;
       }
-    ]);
+    }
+
+    refreshApiStatus();
+    refreshFiveM();
+    refreshVisitors();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    writeLocal('lorax-chat-messages', chatMessages);
+  }, [chatMessages]);
+
+  useEffect(() => {
+    writeLocal('lorax-short-links', linkHistory);
+  }, [linkHistory]);
+
+  useEffect(() => {
+    writeLocal('lorax-uploaded-files', uploadQueue);
+  }, [uploadQueue]);
+
+  const sendChat = async () => {
+    if (!chatInput.trim()) return;
+    const prompt = chatInput;
+    setChatLoading(true);
+    setChatMessages((current) => [...current, { role: 'user', content: prompt }, { role: 'assistant', content: '' }]);
     setChatInput('');
+
+    try {
+      const response = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: prompt })
+      });
+      if (!response.ok || !response.body) throw new Error('AI route unavailable');
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let assistantText = '';
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        assistantText += decoder.decode(value, { stream: true });
+        setChatMessages((current) => {
+          const next = [...current];
+          next[next.length - 1] = { role: 'assistant', content: assistantText };
+          return next;
+        });
+      }
+    } catch {
+      setChatMessages((current) => {
+        const next = [...current];
+        next[next.length - 1] = {
+          role: 'assistant',
+          content: '```ts\nexport async function GET() {\n  return Response.json({ status: "local-fallback" });\n}\n```\nAI API fallback is active. Set `CUSTOM_AI_API_URL` for real model responses.'
+        };
+        return next;
+      });
+    } finally {
+      setChatLoading(false);
+    }
   };
 
   const generateQr = async () => {
@@ -91,6 +192,139 @@ export function LoraxHub() {
       width: 320
     });
     setQrData(data);
+  };
+
+  const createShortLink = async () => {
+    setShortenerStatus('Creating...');
+    try {
+      const response = await fetch('/api/links', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetUrl, slug: customSlug || undefined, title: 'Dashboard link' })
+      });
+      if (!response.ok) throw new Error('Shortener API unavailable');
+      const data = await response.json();
+      const slug = data.link.slug;
+      const usableShortUrl = data.mode === 'fallback' ? `${window.location.origin}/?go=${slug}` : data.shortUrl || `${window.location.origin}/r/${slug}`;
+      setShortUrl(usableShortUrl);
+      setLinkHistory((current) => [
+        { slug, targetUrl, shortUrl: usableShortUrl, clicks: 0, createdAt: new Date().toISOString() },
+        ...current.filter((item) => item.slug !== slug)
+      ]);
+      setShortenerStatus(data.mode === 'fallback' ? 'Saved locally. Configure PostgreSQL for public redirects.' : 'Saved in PostgreSQL');
+    } catch {
+      const localSlug = customSlug || Math.random().toString(36).slice(2, 8);
+      const localShortUrl = `${window.location.origin}/?go=${localSlug}`;
+      setShortUrl(localShortUrl);
+      setLinkHistory((current) => [
+        { slug: localSlug, targetUrl, shortUrl: localShortUrl, clicks: 0, createdAt: new Date().toISOString() },
+        ...current.filter((item) => item.slug !== localSlug)
+      ]);
+      setShortenerStatus('Local fallback link generated. Configure DATABASE_URL for persistent links.');
+    }
+  };
+
+  const downloadQrPng = () => {
+    if (!qrData) return;
+    const link = document.createElement('a');
+    link.href = qrData;
+    link.download = 'lorax-qr.png';
+    link.click();
+  };
+
+  const downloadQrSvg = async () => {
+    const svg = await QRCode.toString(qrValue, {
+      type: 'svg',
+      color: { dark: '#00E5FF', light: '#0A0A0A00' },
+      margin: 1
+    });
+    const blob = new Blob([svg], { type: 'image/svg+xml' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'lorax-qr.svg';
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
+
+  const handleFiles = async (files: FileList | File[]) => {
+    const nextFiles = await Promise.all(
+      Array.from(files).map(
+        (file) =>
+          new Promise<UploadedFile>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              resolve({
+                name: file.name,
+                size: formatBytes(file.size),
+                progress: 100,
+                url: typeof reader.result === 'string' ? reader.result : URL.createObjectURL(file)
+              });
+            };
+            reader.onerror = () => resolve({ name: file.name, size: formatBytes(file.size), progress: 100, url: URL.createObjectURL(file) });
+            reader.readAsDataURL(file);
+          })
+      )
+    );
+    setUploadQueue((current) => [...nextFiles, ...current]);
+  };
+
+  const refreshApiStatus = async () => {
+    setApiStatusMessage('Probing...');
+    try {
+      const response = await fetch('/api/status', { cache: 'no-store' });
+      if (!response.ok) throw new Error('Status API unavailable');
+      const data = await response.json();
+      setLiveApiRows(
+        data.services.map((service: { name: string; status: string; responseTime: number; uptime: number }) => ({
+          name: service.name,
+          status: service.status === 'ONLINE' ? 'Online' : service.status,
+          ping: `${service.responseTime}ms`,
+          uptime: `${service.uptime.toFixed(2)}%`
+        }))
+      );
+      setApiStatusMessage(`Last refresh ${new Date().toLocaleTimeString()}`);
+    } catch {
+      setLiveApiRows(apiRows);
+      setApiStatusMessage('Using demo status. API/database not available.');
+    }
+  };
+
+  const refreshFiveM = async () => {
+    try {
+      const response = await fetch('/api/fivem/status', { cache: 'no-store' });
+      if (!response.ok) throw new Error('FiveM API unavailable');
+      const data = await response.json();
+      setFivemStatus({ name: data.name, online: data.online, maxPlayers: data.maxPlayers, ping: data.ping });
+    } catch {
+      setFivemStatus({ name: 'LORAX Roleplay', online: 84, maxPlayers: 128, ping: 72 });
+    }
+  };
+
+  const refreshVisitors = async () => {
+    try {
+      const response = await fetch('/api/visitors', { cache: 'no-store' });
+      if (!response.ok) throw new Error('Visitor API unavailable');
+      const data = await response.json();
+      setVisitorStats({ total: Number(data.total).toLocaleString(), online: String(data.onlineNow) });
+    } catch {
+      setVisitorStats({ total: '128,904', online: '247' });
+    }
+  };
+
+  const loginAdmin = async () => {
+    setAdminStatus('Authenticating...');
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(adminLogin)
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Login failed');
+      setAdminStatus(`Authenticated as ${data.role}`);
+    } catch (error) {
+      setAdminStatus(error instanceof Error ? error.message : 'Login failed');
+    }
   };
 
   return (
@@ -176,9 +410,22 @@ export function LoraxHub() {
           <CardHeader eyebrow="AI CHAT CENTER" title="Streaming AI Console" />
           <Textarea rows={5} value={chatInput} onChange={(event) => setChatInput(event.target.value)} />
           <div className="mt-3 flex flex-wrap gap-2">
-            <Button onClick={sendChat}><Send size={16} />Send</Button>
-            <Button variant="secondary"><Upload size={16} />Upload file</Button>
-            <Button variant="secondary"><Plus size={16} />New chat</Button>
+            <Button onClick={sendChat} disabled={chatLoading}><Send size={16} />{chatLoading ? 'Streaming' : 'Send'}</Button>
+            <Button variant="secondary" onClick={() => fileInputRef.current?.click()}><Upload size={16} />Upload file</Button>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setConversationTitle(`Conversation ${new Date().toLocaleTimeString()}`);
+                setChatMessages([{ role: 'assistant', content: 'New conversation created. Ask anything.' }]);
+              }}
+            >
+              <Plus size={16} />New chat
+            </Button>
+          </div>
+          <div className="mt-4 rounded-lg border border-white/10 bg-white/5 p-3">
+            <p className="text-xs font-black uppercase tracking-widest text-cyan-300">Active Conversation</p>
+            <strong className="mt-1 block">{conversationTitle}</strong>
+            <span className="text-xs text-slate-400">{chatMessages.length} messages saved locally</span>
           </div>
         </Card>
         <Card className="p-5">
@@ -197,10 +444,27 @@ export function LoraxHub() {
       <section className="relative z-10 mx-auto grid max-w-7xl gap-6 px-4 py-12 lg:grid-cols-3">
         <Card id="shortener" className="p-5">
           <CardHeader eyebrow="URL SHORTENER" title="Link Command" />
-          <Input placeholder="Target URL" defaultValue="https://lorax.dev/dashboard" />
-          <Input className="mt-3" placeholder="Custom slug" defaultValue="demo" />
-          <Button className="mt-3" onClick={() => setShortUrl('https://lor.ax/demo')}><Link2 size={16} />Shorten</Button>
+          <Input placeholder="Target URL" value={targetUrl} onChange={(event) => setTargetUrl(event.target.value)} />
+          <Input className="mt-3" placeholder="Custom slug" value={customSlug} onChange={(event) => setCustomSlug(event.target.value)} />
+          <Button className="mt-3" onClick={createShortLink}><Link2 size={16} />Shorten</Button>
           <div className="mt-4 rounded-lg bg-black/30 p-3 font-mono text-sm text-cyan-300">{shortUrl}</div>
+          <p className="mt-2 text-xs text-slate-400">{shortenerStatus}</p>
+          <Button className="mt-3" variant="secondary" onClick={() => navigator.clipboard.writeText(shortUrl)}><Copy size={16} />Copy</Button>
+          <div className="mt-4 space-y-2">
+            {linkHistory.slice(0, 4).map((link) => (
+              <div key={link.slug} className="rounded-lg border border-white/10 bg-white/5 p-3 text-xs">
+                <div className="flex items-center justify-between gap-2">
+                  <strong className="text-cyan-300">/{link.slug}</strong>
+                  <span>{link.clicks} clicks</span>
+                </div>
+                <p className="mt-1 truncate text-slate-400">{link.targetUrl}</p>
+                <div className="mt-2 flex gap-2">
+                  <a className="font-bold text-cyan-300" href={link.shortUrl}>Open</a>
+                  <button className="text-slate-300" onClick={() => navigator.clipboard.writeText(link.shortUrl)}>Copy</button>
+                </div>
+              </div>
+            ))}
+          </div>
         </Card>
 
         <Card id="qr" className="p-5">
@@ -209,23 +473,50 @@ export function LoraxHub() {
           <Button className="mt-3" onClick={generateQr}><QrCode size={16} />Generate</Button>
           {qrData && <img src={qrData} alt="Generated QR" className="mt-4 h-40 w-40 rounded-lg border border-cyan-300/30 bg-black p-2" />}
           <div className="mt-3 flex gap-2">
-            <Button variant="secondary"><Download size={16} />PNG</Button>
-            <Button variant="secondary"><FileText size={16} />SVG</Button>
+            <Button variant="secondary" onClick={downloadQrPng}><Download size={16} />PNG</Button>
+            <Button variant="secondary" onClick={downloadQrSvg}><FileText size={16} />SVG</Button>
           </div>
         </Card>
 
         <Card id="files" className="p-5">
           <CardHeader eyebrow="FILE UPLOAD CENTER" title="Dropzone" />
-          <div className="rounded-lg border border-dashed border-cyan-300/35 bg-cyan-300/5 p-8 text-center">
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            className="hidden"
+            onChange={(event) => {
+              if (event.target.files) void handleFiles(event.target.files);
+            }}
+          />
+          <div
+            className="rounded-lg border border-dashed border-cyan-300/35 bg-cyan-300/5 p-8 text-center"
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={(event) => {
+              event.preventDefault();
+              void handleFiles(event.dataTransfer.files);
+            }}
+          >
             <CloudUpload className="mx-auto mb-3 text-cyan-300" />
             <p className="font-bold">Drag files here</p>
             <span className="text-sm text-slate-400">Images, videos and documents</span>
+            <Button className="mt-4" variant="secondary" onClick={() => fileInputRef.current?.click()}>Browse Files</Button>
           </div>
           <div className="mt-4 space-y-3">
             {uploadQueue.map((file) => (
               <div key={file.name}>
-                <div className="mb-1 flex justify-between text-xs"><span>{file.name}</span><span>{file.size}</span></div>
+                <div className="mb-1 flex justify-between gap-2 text-xs">
+                  <span>{file.name}</span>
+                  <span>{file.size}</span>
+                </div>
                 <div className="h-2 rounded-full bg-white/10"><div className="h-2 rounded-full bg-cyan-300" style={{ width: `${file.progress}%` }} /></div>
+                {file.url && (
+                  <div className="mt-2 flex gap-2">
+                    <a className="text-xs font-bold text-cyan-300" href={file.url} target="_blank" rel="noreferrer">Open temporary link</a>
+                    <button className="text-xs text-slate-300" onClick={() => navigator.clipboard.writeText(file.url ?? '')}>Copy link</button>
+                    <button className="text-xs text-red-300" onClick={() => setUploadQueue((current) => current.filter((item) => item.name !== file.name))}>Delete</button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -236,7 +527,7 @@ export function LoraxHub() {
         <Card className="p-5">
           <CardHeader eyebrow="VISITOR COUNTER" title="Analytics Overview" />
           <div className="grid gap-3 sm:grid-cols-3">
-            {['Vietnam 42%', 'Desktop 58%', 'Chrome 71%', 'Top page /ai', 'Mobile 38%', 'Online 247'].map((item) => (
+            {[`Total ${visitorStats.total}`, 'Desktop 58%', 'Chrome 71%', 'Top page /ai', 'Mobile 38%', `Online ${visitorStats.online}`].map((item) => (
               <div key={item} className="rounded-lg border border-white/10 bg-white/5 p-4 text-sm font-bold">{item}</div>
             ))}
           </div>
@@ -262,8 +553,12 @@ export function LoraxHub() {
       <section id="status" className="relative z-10 mx-auto grid max-w-7xl gap-6 px-4 py-12 lg:grid-cols-2">
         <Card id="api" className="p-5">
           <CardHeader eyebrow="API STATUS CENTER" title="Service Health" />
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <p className="text-sm text-slate-400">{apiStatusMessage}</p>
+            <Button variant="secondary" onClick={refreshApiStatus}>Refresh</Button>
+          </div>
           <div className="space-y-3">
-            {apiRows.map((row) => (
+            {liveApiRows.map((row) => (
               <div key={row.name} className="grid grid-cols-4 items-center gap-3 rounded-lg border border-white/10 bg-white/5 p-3 text-sm">
                 <strong>{row.name}</strong>
                 <span className={row.status === 'Online' ? 'text-emerald-300' : 'text-yellow-300'}>{row.status}</span>
@@ -278,13 +573,13 @@ export function LoraxHub() {
           <div className="rounded-lg bg-gradient-to-r from-cyan-300/20 to-violet-500/20 p-5">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-2xl font-black">LORAX Roleplay</h3>
-                <p className="text-slate-300">84 online / 128 max</p>
+                <h3 className="text-2xl font-black">{fivemStatus.name}</h3>
+                <p className="text-slate-300">{fivemStatus.online} online / {fivemStatus.maxPlayers} max · {fivemStatus.ping}ms</p>
               </div>
               <Server className="text-cyan-300" />
             </div>
             <div className="mt-5 flex gap-2">
-              <Button><Wifi size={16} />Connect</Button>
+              <Button onClick={refreshFiveM}><Wifi size={16} />Refresh</Button>
               <Button variant="secondary">Discord</Button>
             </div>
           </div>
@@ -309,6 +604,12 @@ export function LoraxHub() {
         </Card>
         <Card id="admin" className="p-5">
           <CardHeader eyebrow="ADMIN DASHBOARD" title="Control Matrix" />
+          <div className="mb-5 grid gap-3 rounded-lg border border-cyan-300/15 bg-cyan-300/5 p-4">
+            <Input value={adminLogin.username} onChange={(event) => setAdminLogin({ ...adminLogin, username: event.target.value })} />
+            <Input type="password" value={adminLogin.password} onChange={(event) => setAdminLogin({ ...adminLogin, password: event.target.value })} />
+            <Button onClick={loginAdmin}><LockKeyhole size={16} />Test JWT Login</Button>
+            <span className="text-sm text-cyan-300">{adminStatus}</span>
+          </div>
           <div className="grid gap-3 sm:grid-cols-2">
             {['Users', 'Files', 'Short Links', 'AI Logs', 'Telegram', 'API', 'FiveM', 'Audit Logs'].map((item) => (
               <div key={item} className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 p-3">
