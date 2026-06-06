@@ -541,7 +541,12 @@ function AdminPage({ content, onSave, onReset }: { content: SiteContent; onSave:
       await onSave(draft);
       setMessage('Da luu len Supabase. Tat ca nguoi xem se thay noi dung moi.');
     } catch (error) {
-      const detail = error instanceof Error ? error.message : 'Unknown Supabase error';
+      const detail =
+        error instanceof Error
+          ? error.message
+          : typeof error === 'object' && error
+            ? JSON.stringify(error)
+            : 'Unknown Supabase error';
       setMessage(`Chua luu duoc len Supabase: ${detail}`);
     } finally {
       setSaving(false);

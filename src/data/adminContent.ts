@@ -91,7 +91,7 @@ export async function loadRemoteSiteContent(): Promise<SiteContent> {
   const { data, error } = await supabase.from('site_content').select('content').eq('id', CONTENT_ROW_ID).maybeSingle();
 
   if (error) {
-    throw error;
+    throw new Error([error.message, error.details, error.hint, error.code].filter(Boolean).join(' | '));
   }
 
   if (!data?.content) {
@@ -120,6 +120,6 @@ export async function saveSiteContent(content: SiteContent): Promise<void> {
   });
 
   if (error) {
-    throw error;
+    throw new Error([error.message, error.details, error.hint, error.code].filter(Boolean).join(' | '));
   }
 }
