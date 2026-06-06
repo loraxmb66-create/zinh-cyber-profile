@@ -1,0 +1,17 @@
+{
+  "name": "Zinh Cyber Profile",
+  "short_name": "Zinh",
+  "description": "Premium futuristic personal profile website.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#05020a",
+  "theme_color": "#05020a",
+  "icons": [
+    {
+      "src": "/assets/zinh-avatar.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
