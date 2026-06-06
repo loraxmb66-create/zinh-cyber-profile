@@ -1,27 +1,29 @@
-# Zinh Cyber Profile
+# Hồ Sơ Cá Nhân Zinh
 
-Premium personal profile website built with React, TypeScript, Tailwind CSS, Framer Motion, Three.js, and GSAP.
+Website hồ sơ cá nhân cao cấp được xây dựng bằng React, TypeScript, Tailwind CSS, Framer Motion, Three.js và GSAP.
 
-## Features
+## Tính năng
 
-- Responsive dark cyberpunk UI with glassmorphism, neon accents, animated Three.js background, cursor aura, rain/snow, and matrix mode.
-- Hero with generated profile avatar, dynamic typing, slogan, online status, and share card action.
-- About, skills, experience timeline, social hub, portfolio filters, project modal, stats dashboard, gallery lightbox, contact center, QR card, badges, music player, language toggle, theme customizer, PWA manifest/service worker, SEO metadata, anti-copy/context-menu warning, live notifications, clock, weather-style widget, and visitor counter.
+- Giao diện người dùng cyberpunk tối màu, đáp ứng trên mọi thiết bị với hiệu ứng glassmorphism, điểm nhấn neon, hình nền động Three.js, hiệu ứng hào quang con trỏ, mưa/tuyết và chế độ ma trận.
 
-## Setup
+- Phần Hero với ảnh đại diện được tạo tự động, gõ chữ động, khẩu hiệu, trạng thái trực tuyến và hành động chia sẻ thẻ.
+
+- Giới thiệu, kỹ năng, dòng thời gian kinh nghiệm, trung tâm mạng xã hội, bộ lọc danh mục đầu tư, cửa sổ bật lên dự án, bảng điều khiển thống kê, hộp đèn thư viện ảnh, trung tâm liên hệ, thẻ QR, huy hiệu, trình phát nhạc, chuyển đổi ngôn ngữ, trình tùy chỉnh chủ đề, manifest/service worker PWA, siêu dữ liệu SEO, cảnh báo chống sao chép/menu ngữ cảnh, thông báo trực tiếp, đồng hồ, tiện ích kiểu thời tiết và bộ đếm lượt truy cập.
+
+## Cài đặt
 
 ```bash
 npm install
 npm run dev
 ```
 
-Production build:
+Bản dựng sản phẩm:
 
 ```bash
 npm run build
 ```
 
-Generated project asset:
+Tài sản dự án được tạo:
 
 - `public/assets/zinh-avatar.png`
 
