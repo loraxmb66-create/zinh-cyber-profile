@@ -33,6 +33,18 @@ import { CartItem, CustomerInfo, ShopOrder, ShopProduct, categories, coupons, cr
 
 type View = 'home' | 'products' | 'detail' | 'cart' | 'checkout' | 'account' | 'admin' | 'policy' | 'terms' | 'guide';
 type AdminTab = 'dashboard' | 'products' | 'orders' | 'users' | 'coupons' | 'theme' | 'payments';
+type AuthMode = 'login' | 'register' | 'forgot' | 'profile';
+type LocalUser = {
+  id: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  address: string;
+  password: string;
+  role: 'USER' | 'ADMIN';
+  locked: boolean;
+  createdAt: string;
+};
 
 function readLocal<T>(key: string, fallback: T): T {
   try {
@@ -75,6 +87,17 @@ export function ShopApp() {
   const [paymentMethod, setPaymentMethod] = useState<ShopOrder['paymentMethod']>('BANK_TRANSFER');
   const [orders, setOrders] = useState<ShopOrder[]>([]);
   const [toast, setToast] = useState('');
+  const [users, setUsers] = useState<LocalUser[]>([]);
+  const [currentUser, setCurrentUser] = useState<LocalUser | null>(null);
+  const [authMode, setAuthMode] = useState<AuthMode>('login');
+  const [authForm, setAuthForm] = useState({
+    fullName: '',
+    email: 'admin@shop.local',
+    phone: '',
+    address: '',
+    password: '123456Dinh',
+    newPassword: ''
+  });
   const [adminProducts, setAdminProducts] = useState<ShopProduct[]>(products);
   const [editingProduct, setEditingProduct] = useState<ShopProduct>(products[0]);
   const [adminTab, setAdminTab] = useState<AdminTab>('dashboard');
@@ -84,12 +107,30 @@ export function ShopApp() {
     setOrders(readLocal<ShopOrder[]>('neon-orders', []));
     setWishlist(readLocal<string[]>('neon-wishlist', []));
     setAdminProducts(readLocal<ShopProduct[]>('neon-products', products));
+    const savedUsers = readLocal<LocalUser[]>('neon-users', [
+      {
+        id: 'admin-local',
+        fullName: 'Admin',
+        email: 'admin@shop.local',
+        phone: '0900000000',
+        address: 'NEON SUPPLY HQ',
+        password: '123456Dinh',
+        role: 'ADMIN',
+        locked: false,
+        createdAt: new Date().toISOString()
+      }
+    ]);
+    setUsers(savedUsers);
+    const sessionUserId = readLocal<string | null>('neon-session-user', null);
+    setCurrentUser(savedUsers.find((user) => user.id === sessionUserId) ?? null);
   }, []);
 
   useEffect(() => writeLocal('neon-cart', cart), [cart]);
   useEffect(() => writeLocal('neon-orders', orders), [orders]);
   useEffect(() => writeLocal('neon-wishlist', wishlist), [wishlist]);
   useEffect(() => writeLocal('neon-products', adminProducts), [adminProducts]);
+  useEffect(() => writeLocal('neon-users', users), [users]);
+  useEffect(() => writeLocal('neon-session-user', currentUser?.id ?? null), [currentUser]);
 
   useEffect(() => {
     if (!toast) return;
@@ -167,6 +208,78 @@ export function ShopApp() {
     setCustomer(emptyCustomer);
     setView('account');
     setToast(`Dat hang thanh cong: ${order.code}`);
+  };
+
+  const register = () => {
+    if (!authForm.fullName || !authForm.email || !authForm.password) {
+      setToast('Vui long nhap ten, email va mat khau');
+      return;
+    }
+    if (users.some((user) => user.email.toLowerCase() === authForm.email.toLowerCase())) {
+      setToast('Email da ton tai');
+      return;
+    }
+    const user: LocalUser = {
+      id: `user-${Date.now()}`,
+      fullName: authForm.fullName,
+      email: authForm.email,
+      phone: authForm.phone,
+      address: authForm.address,
+      password: authForm.password,
+      role: 'USER',
+      locked: false,
+      createdAt: new Date().toISOString()
+    };
+    setUsers((current) => [user, ...current]);
+    setCurrentUser(user);
+    setCustomer({ fullName: user.fullName, phone: user.phone, email: user.email, address: user.address, note: '' });
+    setAuthMode('profile');
+    setToast('Dang ky thanh cong');
+  };
+
+  const login = () => {
+    const user = users.find((item) => item.email.toLowerCase() === authForm.email.toLowerCase() && item.password === authForm.password);
+    if (!user) {
+      setToast('Sai email hoac mat khau');
+      return;
+    }
+    if (user.locked) {
+      setToast('Tai khoan dang bi khoa');
+      return;
+    }
+    setCurrentUser(user);
+    setCustomer({ fullName: user.fullName, phone: user.phone, email: user.email, address: user.address, note: '' });
+    setAuthMode('profile');
+    setToast('Dang nhap thanh cong');
+  };
+
+  const resetPassword = () => {
+    if (!authForm.email || !authForm.newPassword) {
+      setToast('Nhap email va mat khau moi');
+      return;
+    }
+    let updatedUser: LocalUser | null = null;
+    setUsers((current) => current.map((user) => {
+      if (user.email.toLowerCase() !== authForm.email.toLowerCase()) return user;
+      updatedUser = { ...user, password: authForm.newPassword };
+      return updatedUser;
+    }));
+    setToast(updatedUser ? 'Da dat lai mat khau local' : 'Khong tim thay email');
+    if (updatedUser) setAuthMode('login');
+  };
+
+  const updateProfile = () => {
+    if (!currentUser) return;
+    const updated = {
+      ...currentUser,
+      fullName: authForm.fullName || currentUser.fullName,
+      phone: authForm.phone || currentUser.phone,
+      address: authForm.address || currentUser.address,
+      password: authForm.newPassword || currentUser.password
+    };
+    setUsers((current) => current.map((user) => user.id === updated.id ? updated : user));
+    setCurrentUser(updated);
+    setToast('Da cap nhat ho so');
   };
 
   const openDetail = (product: ShopProduct) => {
@@ -409,14 +522,41 @@ export function ShopApp() {
           <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
             <div className="rounded-xl border border-white/10 bg-white/5 p-5">
               <User className="mb-3 text-cyan-300" />
-              <h2 className="text-xl font-black">Dang nhap / Dang ky</h2>
-              <Input className="mt-4" placeholder="Email" />
-              <Input className="mt-3" placeholder="Mat khau" type="password" />
-              <div className="mt-4 flex gap-2">
-                <Button><LockKeyhole size={16} />Dang nhap</Button>
-                <Button variant="secondary">Dang ky</Button>
+              <h2 className="text-xl font-black">
+                {currentUser ? 'Ho so ca nhan' : authMode === 'register' ? 'Dang ky' : authMode === 'forgot' ? 'Quen mat khau' : 'Dang nhap'}
+              </h2>
+              {!currentUser && (
+                <div className="mt-4 flex gap-2">
+                  <Button variant={authMode === 'login' ? 'primary' : 'secondary'} onClick={() => setAuthMode('login')}>Login</Button>
+                  <Button variant={authMode === 'register' ? 'primary' : 'secondary'} onClick={() => setAuthMode('register')}>Register</Button>
+                  <Button variant={authMode === 'forgot' ? 'primary' : 'secondary'} onClick={() => setAuthMode('forgot')}>Forgot</Button>
+                </div>
+              )}
+              {(authMode === 'register' || currentUser) && (
+                <Input className="mt-4" placeholder="Ho ten" value={authForm.fullName} onChange={(event) => setAuthForm({ ...authForm, fullName: event.target.value })} />
+              )}
+              <Input className="mt-3" placeholder="Email" value={authForm.email} onChange={(event) => setAuthForm({ ...authForm, email: event.target.value })} />
+              {(authMode === 'register' || currentUser) && (
+                <>
+                  <Input className="mt-3" placeholder="So dien thoai" value={authForm.phone} onChange={(event) => setAuthForm({ ...authForm, phone: event.target.value })} />
+                  <Input className="mt-3" placeholder="Dia chi" value={authForm.address} onChange={(event) => setAuthForm({ ...authForm, address: event.target.value })} />
+                </>
+              )}
+              {authMode !== 'forgot' && <Input className="mt-3" placeholder="Mat khau" type="password" value={authForm.password} onChange={(event) => setAuthForm({ ...authForm, password: event.target.value })} />}
+              {(authMode === 'forgot' || currentUser) && <Input className="mt-3" placeholder="Mat khau moi" type="password" value={authForm.newPassword} onChange={(event) => setAuthForm({ ...authForm, newPassword: event.target.value })} />}
+              <div className="mt-4 flex flex-wrap gap-2">
+                {!currentUser && authMode === 'login' && <Button onClick={login}><LockKeyhole size={16} />Dang nhap</Button>}
+                {!currentUser && authMode === 'register' && <Button onClick={register}>Dang ky</Button>}
+                {!currentUser && authMode === 'forgot' && <Button onClick={resetPassword}>Dat lai mat khau</Button>}
+                {currentUser && <Button onClick={updateProfile}>Luu ho so</Button>}
+                {currentUser && <Button variant="secondary" onClick={() => { setCurrentUser(null); setAuthMode('login'); setToast('Da dang xuat'); }}>Dang xuat</Button>}
               </div>
-              <button className="mt-3 text-sm text-cyan-300">Quen mat khau?</button>
+              {currentUser && (
+                <div className="mt-4 rounded-lg border border-cyan-300/20 bg-cyan-300/10 p-3 text-sm">
+                  <strong>{currentUser.fullName}</strong>
+                  <p>{currentUser.email} - {currentUser.role}</p>
+                </div>
+              )}
             </div>
             <div className="rounded-xl border border-white/10 bg-white/5 p-5">
               <h2 className="mb-4 text-xl font-black">Lich su don hang</h2>
@@ -439,7 +579,7 @@ export function ShopApp() {
       )}
 
       {view === 'admin' && (
-        <AdminPanel tab={adminTab} setTab={setAdminTab} products={adminProducts} setProducts={setAdminProducts} editing={editingProduct} setEditing={setEditingProduct} saveProduct={saveProduct} orders={orders} revenue={revenue} />
+        <AdminPanel tab={adminTab} setTab={setAdminTab} products={adminProducts} setProducts={setAdminProducts} editing={editingProduct} setEditing={setEditingProduct} saveProduct={saveProduct} orders={orders} revenue={revenue} users={users} setUsers={setUsers} />
       )}
 
       {['policy', 'terms', 'guide'].includes(view) && (
@@ -534,7 +674,7 @@ function OrderSummary({ subtotal, discount, total, coupon, setCoupon, checkout, 
   );
 }
 
-function AdminPanel({ tab, setTab, products, setProducts, editing, setEditing, saveProduct, orders, revenue }: { tab: AdminTab; setTab: (tab: AdminTab) => void; products: ShopProduct[]; setProducts: (products: ShopProduct[]) => void; editing: ShopProduct; setEditing: (product: ShopProduct) => void; saveProduct: () => void; orders: ShopOrder[]; revenue: number }) {
+function AdminPanel({ tab, setTab, products, setProducts, editing, setEditing, saveProduct, orders, revenue, users, setUsers }: { tab: AdminTab; setTab: (tab: AdminTab) => void; products: ShopProduct[]; setProducts: (products: ShopProduct[]) => void; editing: ShopProduct; setEditing: (product: ShopProduct) => void; saveProduct: () => void; orders: ShopOrder[]; revenue: number; users: LocalUser[]; setUsers: (users: LocalUser[]) => void }) {
   const lowStock = products.filter((item) => item.stock <= 8);
   return (
     <Section title="Admin Dashboard">
@@ -559,7 +699,7 @@ function AdminPanel({ tab, setTab, products, setProducts, editing, setEditing, s
               <div className="grid gap-4 sm:grid-cols-4">
                 <Info label="Doanh thu" value={formatCurrency(revenue)} />
                 <Info label="Don hang" value={`${orders.length}`} />
-                <Info label="Khach hang" value="128" />
+                <Info label="Khach hang" value={`${users.length}`} />
                 <Info label="San pham" value={`${products.length}`} />
               </div>
               <div className="mt-6 grid gap-4 lg:grid-cols-2">
@@ -582,7 +722,24 @@ function AdminPanel({ tab, setTab, products, setProducts, editing, setEditing, s
             </div>
           )}
           {tab === 'orders' && <div className="space-y-3">{orders.map((order) => <div key={order.code} className="rounded-lg bg-black/20 p-4"><strong>{order.code}</strong><p>{order.customer.fullName} - {order.customer.phone}</p><p className="text-cyan-300">{formatCurrency(order.total)} · {order.status}</p><Button className="mt-2" variant="secondary" onClick={() => window.print()}>In hoa don</Button></div>)}</div>}
-          {tab === 'users' && <p>Danh sach khach hang, khoa/mo khoa tai khoan va lich su mua hang se dong bo database khi ket noi auth that.</p>}
+          {tab === 'users' && (
+            <div className="space-y-3">
+              {users.map((user) => (
+                <div key={user.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-black/20 p-4">
+                  <div>
+                    <strong>{user.fullName}</strong>
+                    <p className="text-sm text-slate-400">{user.email} - {user.role}</p>
+                  </div>
+                  <Button
+                    variant="secondary"
+                    onClick={() => setUsers(users.map((item) => item.id === user.id ? { ...item, locked: !item.locked } : item))}
+                  >
+                    {user.locked ? 'Mo khoa' : 'Khoa'}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
           {tab === 'coupons' && <p>Ma mau: NEON10 giam 10%, FREESHIP giam 30.000 VND. Co the mo rong qua bang Coupon.</p>}
           {tab === 'theme' && <p>Quan ly logo, banner, mau chu dao, footer va social link. Ban hien tai luu local de test nhanh.</p>}
           {tab === 'payments' && <p>Cau hinh ngan hang, vi dien tu, QR thanh toan va xac nhan thu cong.</p>}

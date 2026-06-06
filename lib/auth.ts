@@ -42,3 +42,8 @@ export async function getCurrentSession() {
     return null;
   }
 }
+
+export async function clearSessionCookie() {
+  const store = await cookies();
+  store.delete(cookieName);
+}
